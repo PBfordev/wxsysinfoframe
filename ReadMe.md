@@ -4,12 +4,15 @@
 Introduction
 ---------
 
-wxSystemInformationFrame is a class to be easily embedded into a wxWidgets application and allowing the programmer easy inspection of many different system and application settings.
+wxSystemInformationFrame is a wxFrame-derived class that can be easily added to a wxWidgets application and provide a quick overview of many different OS, wxWidgets, and application settings.
+
+While this is certainly not something needed often, perhaps once in a blue moon it can save a programmer from typing a throwaway code for inspecting various variables via logging or inside the debugger.
+
 
 Requirements
 ---------
 
-wxWidgets v3 or newer, compiler supporting C++11.
+wxWidgets v3 or newer, a compiler supporting C++11.
 
 Using
 ---------
@@ -17,7 +20,7 @@ Using
 Just add *wxSystemInformationFrame.h* and *wxSystemInformationFrame.cpp* to your project/makefile and then in your application create the `wxSystemInformationFrame`, e.g. 
 
 ```cpp
-#include <wx/wxSystemInformationFrame.h>
+#include "wxSystemInformationFrame.h"
 
 MainFrame::OnShowSystemInformationFrame(wxCommandEvent&)
 {
