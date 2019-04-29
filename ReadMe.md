@@ -22,7 +22,7 @@ Just add *wxsysinfoframe.h* and *wxsysinfoframe.cpp* to your project/makefile an
 ```cpp
 #include "wxsysinfoframe.h"
 
-MainFrame::OnShowSystemInformationFrame(wxCommandEvent&)
+void MainFrame::OnShowSystemInformationFrame(wxCommandEvent&)
 {
     wxSystemInformationFrame* frame = new wxSystemInformationFrame(mainFrame);
     frame->Show();    
