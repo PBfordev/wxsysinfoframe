@@ -5,7 +5,7 @@
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
-#include "wxSystemInformationFrame.h"
+#include "wxsysinfoframe.h"
 
 #include <map>
 
