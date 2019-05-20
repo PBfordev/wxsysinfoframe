@@ -48,7 +48,7 @@ public:
 
     virtual bool CanShowDetailedInformation() const { return false; }
 
-    virtual wxArrayString GetValues(const wxString& separator = " \t") const = 0;
+    virtual wxArrayString GetValues(const wxString& separator = "\t") const = 0;
 protected:
     std::map<long,int> m_columnWidths;
 
@@ -128,9 +128,11 @@ wxArrayString SysInfoListView::GetNameAndValueValues(int nameColumnIndex, int va
 
 void SysInfoListView::AutoSizeColumns()
 {
-    for ( int i = 0; i < GetColumnCount(); ++i )
+    const int columnCount = GetColumnCount();
+    
+    for ( int i = 0; i < columnCount; ++i )
     {
-        auto it = m_columnWidths.find(i);
+        const auto it = m_columnWidths.find(i);
 
         if ( it != m_columnWidths.end() )
             SetColumnWidth(i, it->second);
@@ -274,8 +276,11 @@ SystemColourView::SystemColourView(wxWindow* parent)
          const wxString colourDescription = s_colourInfoArray[i].description;
          const long itemIndex = InsertItem(i, colourName, -1);
 
-         SetItem(itemIndex, Column_Description, colourDescription);
-         SetItemData(itemIndex, (long)i);
+         if ( itemIndex != -1 )
+         {
+             SetItem(itemIndex, Column_Description, colourDescription);
+             SetItemData(itemIndex, (long)i);
+         }
     }
 
     UpdateValues();
@@ -416,7 +421,8 @@ SystemFontView::SystemFontView(wxWindow* parent)
          const wxString fontDescription = s_fontInfoArray[i].description;
          const long itemIndex = AppendItemWithData(fontName, (long)i);
 
-         SetItem(itemIndex, Column_Description, fontDescription);
+         if ( itemIndex != -1 )
+            SetItem(itemIndex, Column_Description, fontDescription);
     }
 
     UpdateValues();
@@ -466,7 +472,7 @@ class SystemMetricView : public SystemSettingView
 public:
     SystemMetricView(wxWindow* parent);
 protected:
-   void DoUpdateValues() override;
+    void DoUpdateValues() override;
 };
 
 
@@ -536,7 +542,8 @@ SystemMetricView::SystemMetricView(wxWindow* parent)
          const wxString metricDescription = s_metricInfoArray[i].description;
          const long itemIndex = AppendItemWithData(metricName, (long)i);
 
-         SetItem(itemIndex, Column_Description, metricDescription);
+         if ( itemIndex != -1 )
+            SetItem(itemIndex, Column_Description, metricDescription);
     }
 
     m_columnWidths[Column_Value] = wxLIST_AUTOSIZE_USEHEADER;
@@ -620,23 +627,23 @@ wxArrayString DisplaysView::GetValues(const wxString& separator) const
     // column headings
     s = _("Parameter");
 
-    for ( int i = 1; i < columnCount; ++i )
+    for ( int columnIndex = 1; columnIndex < columnCount; ++columnIndex )
     {
         wxListItem listItem;
 
         listItem.SetMask(wxLIST_MASK_TEXT);
-        GetColumn(i, listItem);
+        GetColumn(columnIndex, listItem);
         s += separator + listItem.GetText();
     }
     values.push_back(s);
 
     // dump values
-    for ( int i = 0; i < itemCount; ++i )
+    for ( int itemIndex = 0; itemIndex < itemCount; ++itemIndex )
     {
-        s = GetItemText(i, 0);
-        for ( int i1 = 1; i1 < columnCount; ++i1 )
+        s = GetItemText(itemIndex, 0);
+        for ( int columnIndex = 1; columnIndex < columnCount; ++columnIndex )
         {
-            s += separator + GetItemText(i, i1);
+            s += separator + GetItemText(itemIndex, columnIndex);
         }
         values.push_back(s);
     }
@@ -803,10 +810,10 @@ SystemOptionsView::SystemOptionsView(wxWindow* parent)
 
 wxString SysOptToString(const wxString& name)
 {
-    if ( !wxSystemOptions::HasOption(name) )
-        return _("<Not Set>");
-
-    return wxSystemOptions::GetOption(name);
+    if ( wxSystemOptions::HasOption(name) )
+        return wxSystemOptions::GetOption(name);
+    
+    return _("<Not Set>");
 }
 
 void SystemOptionsView::DoUpdateValues()
@@ -1227,7 +1234,8 @@ void EnvironmentVariablesView::DoUpdateValues()
     {
          const long itemIndex = InsertItem(GetItemCount(), variable.first);
 
-         SetItem(itemIndex, Column_Value, variable.second);
+         if ( itemIndex != -1 )
+            SetItem(itemIndex, Column_Value, variable.second);
     }
 }
 
@@ -1350,10 +1358,12 @@ MSWDPIAwarenessHelper::ProcessDPIAwareness MSWDPIAwarenessHelper::GetThisProcess
     if ( !s_initialised )
     {
         if ( s_dllShcore.Load("shcore.dll", wxDL_VERBATIM | wxDL_QUIET) )
+        {
             wxDL_INIT_FUNC(s_pfn, GetProcessDpiAwareness, s_dllShcore);
 
-        if ( !s_pfnGetProcessDpiAwareness )
-            s_dllShcore.Unload();
+            if ( !s_pfnGetProcessDpiAwareness )
+                s_dllShcore.Unload();
+        }        
 
         s_initialised = true;
     }
@@ -1728,6 +1738,9 @@ void PreprocessorDefinesView::DoUpdateValues()
     APPEND_DEFINE_ITEM(wxUSE_MEMORY_TRACING)
     APPEND_DEFINE_ITEM(wxUSE_GLOBAL_MEMORY_OPERATORS)
     APPEND_DEFINE_ITEM(wxUSE_DEBUG_NEW_ALWAYS)
+#ifdef _MSC_VER
+    APPEND_DEFINE_ITEM(wxUSE_VC_CRTDBG)
+#endif // #ifdef _MSC_VER
     APPEND_DEFINE_ITEM(wxUSE_UNICODE)
     APPEND_DEFINE_ITEM(wxUSE_UNICODE_WCHAR)
     APPEND_DEFINE_ITEM(wxUSE_UNICODE_UTF8)
@@ -1983,7 +1996,6 @@ void PreprocessorDefinesView::DoUpdateValues()
     APPEND_DEFINE_ITEM(wxUSE_RICHEDIT)
     APPEND_DEFINE_ITEM(wxUSE_RICHEDIT2)
     APPEND_DEFINE_ITEM(wxUSE_UXTHEME)
-    APPEND_DEFINE_ITEM(wxUSE_VC_CRTDBG)
     APPEND_DEFINE_ITEM(wxUSE_WINRT)
     APPEND_DEFINE_ITEM(wxUSE_WINSOCK2)
 #endif // #ifndef __WXMSW__
@@ -2035,7 +2047,7 @@ wxSystemInformationFrame::wxSystemInformationFrame(wxWindow *parent, wxWindowID 
 
 wxSystemInformationFrame::wxSystemInformationFrame(wxWindow* parent, const wxSize& size, long createFlags)
 {
-     Create(parent, wxID_ANY, "wxSystemInformationFrame", wxDefaultPosition, size, wxDEFAULT_FRAME_STYLE, createFlags);
+    Create(parent, wxID_ANY, "wxSystemInformationFrame", wxDefaultPosition, size, wxDEFAULT_FRAME_STYLE, createFlags);
 }
 
 
@@ -2123,17 +2135,6 @@ bool wxSystemInformationFrame::Create(wxWindow *parent, wxWindowID id, const wxS
 
     Bind(wxEVT_SYS_COLOUR_CHANGED, &wxSystemInformationFrame::OnSysColourChanged, this);
     Bind(wxEVT_DISPLAY_CHANGED, &wxSystemInformationFrame::OnDisplayChanged, this);
-
-#if 0
-    // add keyboard shortcuts for refreshing values
-    wxAcceleratorEntry acceleratorEntries[2];
-    acceleratorEntries[0].Set(wxACCEL_NORMAL, WXK_F5, refreshButton->GetId());
-    acceleratorEntries[1].Set(wxACCEL_CTRL, (int)'R', refreshButton->GetId());
-
-    wxAcceleratorTable acceleratorTable(WXSIZEOF(acceleratorEntries), acceleratorEntries);
-
-    SetAcceleratorTable(acceleratorTable);
-#endif // #if 0
 
     return true;
 }
@@ -2255,15 +2256,12 @@ void wxSystemInformationFrame::OnSave(wxCommandEvent&)
     {
         if ( !textFile.Open() )
             return;
+        textFile.Clear();
     }
-    else
-    {
-        if ( !textFile.Create() )
-            return;
-    }
-
-    textFile.Clear();
-
+    else    
+    if ( !textFile.Create() )
+        return;
+    
     for ( const auto& value : values )
         textFile.AddLine(value);
 
