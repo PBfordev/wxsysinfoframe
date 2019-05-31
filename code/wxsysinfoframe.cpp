@@ -651,7 +651,7 @@ wxArrayString DisplaysView::GetValues(const wxString& separator) const
     return values;
 }
 
-wxString wxRectToxwString(const wxRect& r)
+wxString wxRectTowxString(const wxRect& r)
 {
     return wxString::Format(_("%d, %d; %d, %d"),
         r.GetLeft(), r.GetTop(), r.GetRight(), r.GetBottom());
@@ -699,13 +699,13 @@ void DisplaysView::DoUpdateValues()
                     value.Printf("%d", videoMode.refresh);
                     break;
                 case Param_GeometryCoords:
-                    value = wxRectToxwString(geometryCoords);
+                    value = wxRectTowxString(geometryCoords);
                     break;
                 case Param_GeometrySize:
                     value.Printf(_("%d x %d"), geometryCoords.GetWidth(), geometryCoords.GetHeight());
                     break;
                 case Param_ClientAreaCoords:
-                    value = wxRectToxwString(clientAreaCoords);
+                    value = wxRectTowxString(clientAreaCoords);
                     break;
                 case Param_ClientAreaSize:
                     value.Printf(_("%d x %d"), clientAreaCoords.GetWidth(), clientAreaCoords.GetHeight());
