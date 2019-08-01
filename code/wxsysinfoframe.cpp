@@ -22,6 +22,7 @@
 #include <wx/stdpaths.h>
 #include <wx/sysopt.h>
 #include <wx/textfile.h>
+#include <wx/thread.h>
 #include <wx/utils.h>
 #include <wx/wupdlock.h>
 
@@ -1275,6 +1276,8 @@ private:
         Param_AppHasStderr,
         Param_IsProcess64bit,
         Param_ComCtl32Version,
+        Param_GDIObjectCount,
+        Param_UserObjectCount,
         Param_IsProcessDPIAware,
         Param_ProcessDPIAwareness,
         Param_ThreadDPIAwarenessContext,
@@ -1289,6 +1292,7 @@ private:
         Param_OSDescription,
         Param_OSVersion,
         Param_OSDirectory,
+        Param_CPUCount,
         Param_IsPlatform64Bit,
         Param_IsPlatformLittleEndian,
     };
@@ -1535,12 +1539,14 @@ MiscellaneousView::MiscellaneousView(wxWindow* parent)
 
 #ifdef __WXMSW__
     AppendItemWithData(_("ComCtl32.dll Version"), Param_ComCtl32Version);
+    AppendItemWithData(_("GDI Object Count"), Param_GDIObjectCount);
+    AppendItemWithData(_("User Object Count"), Param_UserObjectCount);
     AppendItemWithData(_("Is Process DPI Aware"), Param_IsProcessDPIAware);
     AppendItemWithData(_("Process DPI Awareness"), Param_ProcessDPIAwareness);
     AppendItemWithData(_("Thread DPI Awareness Context"), Param_ThreadDPIAwarenessContext);
     AppendItemWithData(_("System DPI for Process"), Param_ProcessSystemDPI);
-
 #endif // #ifdef __WXMSW__
+
     AppendItemWithData(_("Path Separator"), Param_PathSeparator);
     AppendItemWithData(_("User Id"), Param_UserId);
     AppendItemWithData(_("User Name"), Param_UserName);
@@ -1552,6 +1558,7 @@ MiscellaneousView::MiscellaneousView(wxWindow* parent)
     AppendItemWithData(_("OS Version"), Param_OSVersion);
     AppendItemWithData(_("OS Directory"), Param_OSDirectory);
     AppendItemWithData(_("64-bit Platform"), Param_IsPlatform64Bit);
+    AppendItemWithData(_("CPU Count"), Param_CPUCount);
     AppendItemWithData(_("Little Endian"), Param_IsPlatformLittleEndian);
 
     UpdateValues();
@@ -1563,6 +1570,11 @@ void MiscellaneousView::DoUpdateValues()
     wxAppConsole* appInstance = wxAppConsole::GetInstance();
     wxAppTraits* appTraits = appInstance->GetTraits();
     const long itemCount = GetItemCount();
+#ifdef __WXMSW__
+    HANDLE hCurrentProcess = ::GetCurrentProcess();
+    const DWORD GDIObjectCount = ::GetGuiResources(hCurrentProcess, GR_GDIOBJECTS);
+    const DWORD UserObjectCount =  ::GetGuiResources(hCurrentProcess, GR_USEROBJECTS);
+#endif
 
     wxGetOsVersion(&verMajor, &verMinor, &verMicro);
 
@@ -1583,6 +1595,8 @@ void MiscellaneousView::DoUpdateValues()
 
 #ifdef __WXMSW__
             case Param_ComCtl32Version:           value.Printf("%d", wxApp::GetComCtl32Version()); break;
+            case Param_GDIObjectCount:            value = GDIObjectCount ? wxString::Format("%lu", GDIObjectCount) : _("N/A"); break;
+            case Param_UserObjectCount:           value = UserObjectCount ? wxString::Format("%lu", UserObjectCount) : _("N/A"); break;
             case Param_IsProcessDPIAware:         value = MSWDPIAwarenessHelper::IsThisProcessDPIAware() ? _("Yes") : _("No"); break;
             case Param_ProcessDPIAwareness:       value = MSWDPIAwarenessHelper::GetThisProcessDPIAwarenessStr(); break;
             case Param_ThreadDPIAwarenessContext: value = MSWDPIAwarenessHelper::GetThreadDPIAwarenessContextStr(); break;
@@ -1600,6 +1614,7 @@ void MiscellaneousView::DoUpdateValues()
             case Param_OSVersion:                 value.Printf(_("%d.%d.%d"), verMajor, verMinor, verMicro); break;
             case Param_OSDirectory:               value = wxGetOSDirectory(); break;
             case Param_IsPlatform64Bit:           value = wxIsPlatform64Bit() ? _("Yes") : _("No"); break;
+            case Param_CPUCount:                  value.Printf("%d", wxThread::GetCPUCount()); break;
             case Param_IsPlatformLittleEndian:    value =  wxIsPlatformLittleEndian() ? _("Yes") : _("No"); break;
 
             default:
