@@ -17,15 +17,15 @@ wxWidgets v3 or newer, a compiler supporting C++11.
 Using
 ---------
 
-Just add *wxsysinfoframe.h* and *wxsysinfoframe.cpp* to your project/makefile and then in your application create the `wxSystemInformationFrame`, e.g. 
+Just add *wxsysinfoframe.h* and *wxsysinfoframe.cpp* to your project/makefile and then in your application create a `wxSystemInformationFrame` instance, e.g. 
 
 ```cpp
 #include "wxsysinfoframe.h"
 
 void MainFrame::OnShowSystemInformationFrame(wxCommandEvent&)
 {
-    wxSystemInformationFrame* frame = new wxSystemInformationFrame(mainFrame);
-    frame->Show();    
+    wxSystemInformationFrame* frame = new wxSystemInformationFrame(this);
+    frame->Show();
 }
 ```
 
