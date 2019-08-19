@@ -1247,10 +1247,13 @@ void EnvironmentVariablesView::DoUpdateValues()
 
 *************************************************/
 
+class ObtainFullHostNameThread;
+
 class MiscellaneousView : public SysInfoListView
 {
 public:
     MiscellaneousView(wxWindow* parent);
+    ~MiscellaneousView();
 
     wxArrayString GetValues(const wxString& separator) const override
     {
@@ -1296,6 +1299,12 @@ private:
         Param_IsPlatform64Bit,
         Param_IsPlatformLittleEndian,
     };
+
+    ObtainFullHostNameThread* m_obtainFullHostNameThread{nullptr};
+    
+    void OnObtainFullHostNameThread(wxThreadEvent& event);
+    void StartObtainFullHostNameThread();
+    void StopObtainFullHostNameThread();
 };
 
 #ifdef __WXMSW__
@@ -1523,6 +1532,32 @@ wxString MSWDPIAwarenessHelper::GetThreadDPIAwarenessContextStr()
 
 #endif // #ifdef __WXMSW__
 
+class ObtainFullHostNameThread : public wxThread
+{
+public:
+    ObtainFullHostNameThread(wxEvtHandler* sink)
+        : wxThread(wxTHREAD_JOINABLE),
+          m_sink(sink)
+    {}
+
+protected:
+    wxEvtHandler* m_sink;
+
+    ExitCode Entry() override
+    {   
+        wxThreadEvent evt;
+
+        evt.SetString(wxGetFullHostName());        
+        wxQueueEvent(m_sink, evt.Clone());
+        return static_cast<wxThread::ExitCode>(nullptr);
+    }
+};
+
+MiscellaneousView::~MiscellaneousView()
+{
+    StopObtainFullHostNameThread();
+}
+
 MiscellaneousView::MiscellaneousView(wxWindow* parent)
     : SysInfoListView(parent)
 {
@@ -1561,6 +1596,8 @@ MiscellaneousView::MiscellaneousView(wxWindow* parent)
     AppendItemWithData(_("CPU Count"), Param_CPUCount);
     AppendItemWithData(_("Little Endian"), Param_IsPlatformLittleEndian);
 
+    Bind(wxEVT_THREAD, &MiscellaneousView::OnObtainFullHostNameThread, this);
+
     UpdateValues();
 }
 
@@ -1577,6 +1614,8 @@ void MiscellaneousView::DoUpdateValues()
 #endif
 
     wxGetOsVersion(&verMajor, &verMinor, &verMicro);
+
+    StartObtainFullHostNameThread();
 
     for ( int i = 0; i < itemCount; ++i )
     {
@@ -1609,7 +1648,7 @@ void MiscellaneousView::DoUpdateValues()
             case Param_SystemEncodingName:        value = wxLocale::GetSystemEncodingName(); break;
             case Param_SystemLanguage:            value =  wxLocale::GetLanguageName(wxLocale::GetSystemLanguage()); break;
             case Param_HostName:                  value = wxGetHostName(); break;
-            case Param_FullHostName:              value = wxGetFullHostName(); break;
+            case Param_FullHostName:              value = _("<Evaluating...>"); break;
             case Param_OSDescription:             value =  wxGetOsDescription(); break;
             case Param_OSVersion:                 value.Printf(_("%d.%d.%d"), verMajor, verMinor, verMicro); break;
             case Param_OSDirectory:               value = wxGetOSDirectory(); break;
@@ -1622,6 +1661,37 @@ void MiscellaneousView::DoUpdateValues()
         }
 
         SetItem(i, Column_Value, value);
+    }
+}
+
+void MiscellaneousView::OnObtainFullHostNameThread(wxThreadEvent& event)
+{
+    const long itemIndex = FindItem(-1, Param_FullHostName);
+
+    if ( itemIndex != wxNOT_FOUND )
+        SetItem(itemIndex, Column_Value, event.GetString());
+}
+
+void MiscellaneousView::StartObtainFullHostNameThread()
+{
+    StopObtainFullHostNameThread();
+
+    m_obtainFullHostNameThread = new ObtainFullHostNameThread(this);
+    if ( m_obtainFullHostNameThread->Run() != wxTHREAD_NO_ERROR )
+    {
+        delete m_obtainFullHostNameThread;
+        m_obtainFullHostNameThread= nullptr;
+        wxLogError(_("Could not create the thread needed to obtain the full host name."));
+    }
+}
+
+void MiscellaneousView::StopObtainFullHostNameThread()
+{
+    if ( m_obtainFullHostNameThread )
+    {
+        m_obtainFullHostNameThread->Delete();
+        delete m_obtainFullHostNameThread;
+        m_obtainFullHostNameThread = nullptr;
     }
 }
 
