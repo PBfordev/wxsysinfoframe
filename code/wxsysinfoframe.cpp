@@ -558,7 +558,7 @@ void SystemMetricView::DoUpdateValues()
 
     for ( int i = 0; i < itemCount; ++i )
     {
-         const int metricValue  = wxSystemSettings::GetMetric(s_metricInfoArray[GetItemData(i)].index, GetGrandParent());
+         const int metricValue  = wxSystemSettings::GetMetric(s_metricInfoArray[GetItemData(i)].index, wxGetTopLevelParent(this));
 
          SetItem(i, Column_Value, wxString::Format("%d", metricValue));
     }
