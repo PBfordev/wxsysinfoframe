@@ -1285,6 +1285,7 @@ private:
         Param_ProcessDPIAwareness,
         Param_ThreadDPIAwarenessContext,
         Param_ProcessSystemDPI,
+        Param_WindowDPI,
         Param_PathSeparator,
         Param_UserId,
         Param_UserName,
@@ -1334,6 +1335,7 @@ public:
     static ProcessDPIAwareness GetThisProcessDPIAwareness();
     static wxString GetThisProcessDPIAwarenessStr();
     static unsigned GetSystemDpiForThisProcess();
+    static unsigned GetDpiForWindow(wxWindow* win);
 
     static DPIAwarenessContext GetThreadDPIAwarenessContext();
     static wxString GetThreadDPIAwarenessContextStr();
@@ -1445,6 +1447,27 @@ unsigned MSWDPIAwarenessHelper::GetSystemDpiForThisProcess()
         return 96;
 
     return s_pfnGetSystemDpiForProcess(nullptr);
+}
+
+unsigned MSWDPIAwarenessHelper::GetDpiForWindow(wxWindow* win)
+{
+    typedef unsigned (WINAPI *GetDpiForWindow_t)(HWND);
+
+    static bool s_initialised = false;
+    static GetDpiForWindow_t s_pfnGetDpiForWindow = nullptr;
+
+    if ( !s_initialised )
+    {
+        wxLoadedDLL dllUser32("user32.dll");
+
+        wxDL_INIT_FUNC(s_pfn, GetDpiForWindow, dllUser32);
+        s_initialised = true;
+    }
+
+    if ( !s_pfnGetDpiForWindow )
+        return 96;
+
+    return s_pfnGetDpiForWindow(win->GetHWND());
 }
 
 MSWDPIAwarenessHelper::DPIAwarenessContext MSWDPIAwarenessHelper::GetThreadDPIAwarenessContext()
@@ -1580,6 +1603,7 @@ MiscellaneousView::MiscellaneousView(wxWindow* parent)
     AppendItemWithData(_("Process DPI Awareness"), Param_ProcessDPIAwareness);
     AppendItemWithData(_("Thread DPI Awareness Context"), Param_ThreadDPIAwarenessContext);
     AppendItemWithData(_("System DPI for Process"), Param_ProcessSystemDPI);
+    AppendItemWithData(_("DPI for This Window"), Param_WindowDPI);
 #endif // #ifdef __WXMSW__
 
     AppendItemWithData(_("Path Separator"), Param_PathSeparator);
@@ -1640,6 +1664,7 @@ void MiscellaneousView::DoUpdateValues()
             case Param_ProcessDPIAwareness:       value = MSWDPIAwarenessHelper::GetThisProcessDPIAwarenessStr(); break;
             case Param_ThreadDPIAwarenessContext: value = MSWDPIAwarenessHelper::GetThreadDPIAwarenessContextStr(); break;
             case Param_ProcessSystemDPI:          value.Printf("%d", MSWDPIAwarenessHelper::GetSystemDpiForThisProcess()); break;
+            case Param_WindowDPI:                 value.Printf("%d", MSWDPIAwarenessHelper::GetDpiForWindow(wxGetTopLevelParent(this))); break;
 #endif // #ifdef __WXMSW__
 
             case Param_PathSeparator:             value.Printf("%s", wxString(wxFileName::GetPathSeparator())); break;
