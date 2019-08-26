@@ -1287,6 +1287,7 @@ private:
         Param_ThreadDPIAwarenessContext,
         Param_ProcessSystemDPI,
         Param_WindowDPI,
+        Param_WindowContentScaleFactor,
         Param_PathSeparator,
         Param_UserId,
         Param_UserName,
@@ -1607,6 +1608,7 @@ MiscellaneousView::MiscellaneousView(wxWindow* parent)
     AppendItemWithData(_("DPI for This Window"), Param_WindowDPI);
 #endif // #ifdef __WXMSW__
 
+    AppendItemWithData(_("Window Content Scale Factor"), Param_WindowContentScaleFactor);
     AppendItemWithData(_("Path Separator"), Param_PathSeparator);
     AppendItemWithData(_("User Id"), Param_UserId);
     AppendItemWithData(_("User Name"), Param_UserName);
@@ -1665,9 +1667,10 @@ void MiscellaneousView::DoUpdateValues()
             case Param_ProcessDPIAwareness:       value = MSWDPIAwarenessHelper::GetThisProcessDPIAwarenessStr(); break;
             case Param_ThreadDPIAwarenessContext: value = MSWDPIAwarenessHelper::GetThreadDPIAwarenessContextStr(); break;
             case Param_ProcessSystemDPI:          value.Printf("%d", MSWDPIAwarenessHelper::GetSystemDpiForThisProcess()); break;
-            case Param_WindowDPI:                 value.Printf("%d", MSWDPIAwarenessHelper::GetDpiForWindow(wxGetTopLevelParent(this))); break;
+            case Param_WindowDPI:                 value.Printf("%d", MSWDPIAwarenessHelper::GetDpiForWindow(this)); break;
 #endif // #ifdef __WXMSW__
 
+            case Param_WindowContentScaleFactor:  value.Printf("%.2f", GetContentScaleFactor()); break;
             case Param_PathSeparator:             value.Printf("%s", wxString(wxFileName::GetPathSeparator())); break;
             case Param_UserId:                    value = wxGetUserId(); break;
             case Param_UserName:                  value = wxGetUserName(); break;
