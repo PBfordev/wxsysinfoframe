@@ -593,6 +593,7 @@ private:
         Param_ClientAreaCoords,
         Param_ClientAreaSize,
         Param_PPI,
+        Param_HasThisWindow
     };
 };
 
@@ -611,6 +612,7 @@ DisplaysView::DisplaysView(wxWindow* parent)
     AppendItemWithData(_("Client Area Coordinates (left, top; right, bottom)"), Param_ClientAreaCoords);
     AppendItemWithData(_("Client Area Size"), Param_ClientAreaSize);
     AppendItemWithData(_("Pixels Per Inch"), Param_PPI);
+    AppendItemWithData(_("Has This Window"), Param_HasThisWindow);
 
     UpdateValues();
 }
@@ -664,6 +666,7 @@ void DisplaysView::DoUpdateValues()
         DeleteColumn(1);
 
     const unsigned int displayCount = wxDisplay::GetCount();
+    const int displayForThisWindow = wxDisplay::GetFromWindow(wxGetTopLevelParent(this));
     const int itemCount = GetItemCount();
 
     for ( size_t displayIndex = 0; displayIndex < displayCount; ++displayIndex )
@@ -713,6 +716,9 @@ void DisplaysView::DoUpdateValues()
                     break;
                 case Param_PPI:
                     value.Printf(_("%d x %d"), ppi.GetWidth(), ppi.GetHeight());
+                    break;
+                case Param_HasThisWindow:
+                    value = displayForThisWindow == displayIndex ? _("Yes") : _("No");
                     break;
                 default:
                     wxFAIL;
@@ -829,28 +835,23 @@ void SystemOptionsView::DoUpdateValues()
         switch ( param )
         {
             case Param_ExitOnAssert: value = SysOptToString(wxS("exit-on-assert")); break;
-#ifdef __WXMSW__
+
             case Param_NoMaskBit:                   value = SysOptToString(wxS("no-maskblt")); break;
             case Param_MSWRemap:                    value = SysOptToString(wxS("msw.remap")); break;
             case Param_MSWWindowNoClipChildren:     value = SysOptToString(wxS("msw.window.no-clip-children")); break;
             case Param_MSWNotebookThemedBackground: value = SysOptToString(wxS("msw.notebook.themed-background")); break;
             case Param_MSWStaticBoxOptimizedPaint:  value = SysOptToString(wxS("msw.staticbox.optimized-paint")); break;
             case Param_MSWFontNoProofQuality:       value = SysOptToString(wxS("msw.font.no-proof-quality")); break;
-#endif // #ifdef __WXMSW__
 
-#ifdef __WXGTK__
             case Param_GTKTLWCanSetTransparent:        value = SysOptToString(wxS("gtk.tlw.can-set-transparent")); break;
             case Param_GTKDesktop:                     value = SysOptToString(wxS("gtk.desktop")); break;
             case Param_GTKWindowForceBackgroundColour: value = SysOptToString(wxS("gtk.window.force-background-colour")); break;
-#endif // #ifdef __WXGTK__
 
-#ifdef __WXMAC__
             case Param_MacWindowPlainTransition:      value = SysOptToString(wxS("mac.window-plain-transition")); break;
             case Param_MacWindowDefaultVariant:       value = SysOptToString(wxS("window-default-variant")); break;
             case Param_MacListCtrlAwaysUseGeneric:    value = SysOptToString(wxS("mac.listctrl.always_use_generic")); break;
             case Param_MacTextControlUseSpellChecker: value = SysOptToString(wxS("mac.textcontrol-use-spell-checker")); break;
             case Param_OSXFileDialogAlwaysShowTypes:  value = SysOptToString(wxS("osx.openfiledialog.always-show-types")); break;
-#endif // #ifdef __WXMAC__
 
             default:
                 wxFAIL;
@@ -1350,7 +1351,7 @@ bool MSWDPIAwarenessHelper::IsThisProcessDPIAware()
 
     if ( !s_initialised )
     {
-        wxDynamicLibrary dllUser32("user32.dll", wxDL_VERBATIM | wxDL_QUIET);
+        wxLoadedDLL dllUser32("user32.dll");
 
         wxDL_INIT_FUNC(s_pfn, IsProcessDPIAware, dllUser32);
         s_initialised = true;
@@ -1437,7 +1438,7 @@ unsigned MSWDPIAwarenessHelper::GetSystemDpiForThisProcess()
 
     if ( !s_initialised )
     {
-        wxDynamicLibrary dllUser32("user32.dll", wxDL_VERBATIM | wxDL_QUIET);
+        wxLoadedDLL dllUser32("user32.dll");
 
         wxDL_INIT_FUNC(s_pfn, GetSystemDpiForProcess, dllUser32);
         s_initialised = true;
@@ -1480,17 +1481,17 @@ MSWDPIAwarenessHelper::DPIAwarenessContext MSWDPIAwarenessHelper::GetThreadDPIAw
     static const MSW_DPI_AWARENESS_CONTEXT MSW_DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED    = (MSW_DPI_AWARENESS_CONTEXT)-5;
 
     typedef MSW_DPI_AWARENESS_CONTEXT (WINAPI *GetThreadDpiAwarenessContext_t)();
-    typedef BOOL (WINAPI *AreDpiAwarenessContextsEqual_t)(MSW_DPI_AWARENESS_CONTEXT, MSW_DPI_AWARENESS_CONTEXT);
     typedef BOOL (WINAPI *IsValidDpiAwarenessContext_t)(MSW_DPI_AWARENESS_CONTEXT);
+    typedef BOOL (WINAPI *AreDpiAwarenessContextsEqual_t)(MSW_DPI_AWARENESS_CONTEXT, MSW_DPI_AWARENESS_CONTEXT);
 
     static bool s_initialised = false;
     static GetThreadDpiAwarenessContext_t s_pfnGetThreadDpiAwarenessContext = nullptr;
-    static AreDpiAwarenessContextsEqual_t s_pfnAreDpiAwarenessContextsEqual = nullptr;
     static IsValidDpiAwarenessContext_t   s_pfnIsValidDpiAwarenessContext   = nullptr;
+    static AreDpiAwarenessContextsEqual_t s_pfnAreDpiAwarenessContextsEqual = nullptr;
 
     if ( !s_initialised )
     {
-        wxDynamicLibrary dllUser32("user32.dll", wxDL_VERBATIM | wxDL_QUIET);
+        wxLoadedDLL dllUser32("user32.dll");
 
         wxDL_INIT_FUNC(s_pfn, GetThreadDpiAwarenessContext, dllUser32);
         wxDL_INIT_FUNC(s_pfn, AreDpiAwarenessContextsEqual, dllUser32);
@@ -1772,7 +1773,7 @@ wxString DefineValueToText(const wxString& name, const wxString& value)
 
 void PreprocessorDefinesView::DoUpdateValues()
 {
-    // preprocesser defines cannot be
+    // preprocessor defines cannot be
     // changed when the application is running
     if ( GetItemCount() > 0 )
         return;
@@ -2351,8 +2352,7 @@ void wxSystemInformationFrame::OnShowwxInfoMessageBox(wxCommandEvent&)
 }
 
 void wxSystemInformationFrame::OnSave(wxCommandEvent&)
-{
-    const wxArrayString values = GetValues();
+{ 
     const wxString fileName = wxFileSelector(_("Choose File Name"), "", "", "",
                                              _("Text Files (*.txt)|*.txt"),
                                              wxFD_SAVE | wxFD_OVERWRITE_PROMPT, this);
@@ -2371,7 +2371,9 @@ void wxSystemInformationFrame::OnSave(wxCommandEvent&)
     else    
     if ( !textFile.Create() )
         return;
-    
+ 
+    const wxArrayString values = GetValues();
+
     for ( const auto& value : values )
         textFile.AddLine(value);
 
