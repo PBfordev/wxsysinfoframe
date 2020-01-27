@@ -94,6 +94,9 @@ private:
     void OnUpdateValuesTimer(wxTimerEvent&);
     void OnSysColourChanged(wxSysColourChangedEvent& event);
     void OnDisplayChanged(wxDisplayChangedEvent& event);
+#if wxCHECK_VERSION(3, 1, 3)
+    void OnDPIChanged(wxDPIChangedEvent& event);
+#endif
 };
 
 #endif //ifndef WX_SYSTEM_INFORMATION_FRAME_H_DEFINED

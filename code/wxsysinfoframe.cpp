@@ -2249,6 +2249,10 @@ bool wxSystemInformationFrame::Create(wxWindow *parent, wxWindowID id, const wxS
     Bind(wxEVT_SYS_COLOUR_CHANGED, &wxSystemInformationFrame::OnSysColourChanged, this);
     Bind(wxEVT_DISPLAY_CHANGED, &wxSystemInformationFrame::OnDisplayChanged, this);
 
+#if wxCHECK_VERSION(3, 1, 3)
+    Bind(wxEVT_DPI_CHANGED, &wxSystemInformationFrame::OnDPIChanged, this);
+#endif
+
     return true;
 }
 
@@ -2407,3 +2411,16 @@ void wxSystemInformationFrame::OnDisplayChanged(wxDisplayChangedEvent& event)
     LogInformation(_("wxDisplayChangedEvent arrived."));
     TriggerValuesUpdate();
 }
+
+#if wxCHECK_VERSION(3, 1, 3)
+void wxSystemInformationFrame::OnDPIChanged(wxDPIChangedEvent& event)
+{
+    const wxSize oldDPI = event.GetOldDPI();
+    const wxSize newDPI = event.GetNewDPI();
+    
+    event.Skip();
+    LogInformation(wxString::Format(_("wxDPIChangedEvent arrived: old DPI=%dx%d, new DPI=%dx%d."),
+        oldDPI.GetWidth(), oldDPI.GetHeight(), newDPI.GetWidth(), newDPI.GetHeight()));
+    TriggerValuesUpdate();
+}
+#endif
