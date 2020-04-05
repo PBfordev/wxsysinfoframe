@@ -2294,14 +2294,15 @@ WXLRESULT wxSystemInformationFrame::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, 
             (unsigned)wParam, lParam ? (LPCTSTR)lParam : wxS("")));
         TriggerValuesUpdate();
     }
+#if !wxCHECK_VERSION(3, 1, 3) // 3.1.3+ has wxEVT_DPI_CHANGED
     else
     if ( nMsg ==  0x02E0 ) // 0x02E0 = WM_DPICHANGED
     {
-        LogInformation(wxString::Format("WM_DPICHANGED received: new DPI = %u x %u",
+        LogInformation(wxString::Format("WM_DPICHANGED received: new DPI = %ux%u",
             (unsigned)LOWORD(wParam), (unsigned)HIWORD(wParam)));
         TriggerValuesUpdate();
     }
-
+#endif // #if !wxCHECK_VERSION(3, 1, 3)
     return wxFrame::MSWWindowProc(nMsg, wParam, lParam);
 }
 #endif // #ifdef __WXMSW__
