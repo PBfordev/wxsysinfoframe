@@ -1845,6 +1845,10 @@ void PreprocessorDefinesView::DoUpdateValues()
 
     APPEND_DEFINE_ITEM(NDEBUG)
 
+    const long ABIVersion = wxABI_VERSION;
+    itemIndex = InsertItem(GetItemCount(), "wxABI_VERSION");
+    SetItem(itemIndex, Column_Value, wxString::Format("%ld", ABIVersion));
+    
     APPEND_DEFINE_ITEM(WXWIN_COMPATIBILITY_2_8)
     APPEND_DEFINE_ITEM(WXWIN_COMPATIBILITY_3_0)
     APPEND_DEFINE_ITEM(wxUSE_REPRODUCIBLE_BUILD)
