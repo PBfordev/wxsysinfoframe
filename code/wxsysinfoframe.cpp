@@ -1776,7 +1776,8 @@ wxString DefineValueToText(const wxString& name, const wxString& value)
 
 #define APPEND_HAS_FEATURE_ITEM(name, value) \
     itemIndex = InsertItem(GetItemCount(), name); \
-    SetItem(itemIndex, Column_Value, value ? _("Yes") : _("No"));
+    SetItem(itemIndex, Column_Value, hasDefine ? _("Yes") : _("No")); \
+    hasDefine = false;
 
 void PreprocessorDefinesView::DoUpdateValues()
 {
@@ -1848,7 +1849,7 @@ void PreprocessorDefinesView::DoUpdateValues()
     const long ABIVersion = wxABI_VERSION;
     itemIndex = InsertItem(GetItemCount(), "wxABI_VERSION");
     SetItem(itemIndex, Column_Value, wxString::Format("%ld", ABIVersion));
-    
+
     APPEND_DEFINE_ITEM(WXWIN_COMPATIBILITY_2_8)
     APPEND_DEFINE_ITEM(WXWIN_COMPATIBILITY_3_0)
     APPEND_DEFINE_ITEM(wxUSE_REPRODUCIBLE_BUILD)
@@ -2156,146 +2157,123 @@ void PreprocessorDefinesView::DoUpdateValues()
     APPEND_DEFINE_ITEM(wxUSE_THEME_WIN32)
 #endif // #ifdef __WXUNIVERSAL__
 
+
     bool hasDefine;
 
-    hasDefine = false;
 #ifdef wxHAS_3STATE_CHECKBOX
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_3STATE_CHECKBOX", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_ATOMIC_OPS
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_ATOMIC_OPS", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_BITMAPTOGGLEBUTTON
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_BITMAPTOGGLEBUTTON", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_CONFIG_TEMPLATE_RW
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_CONFIG_TEMPLATE_RW", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_MEMBER_DEFAULT
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_MEMBER_DEFAULT", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_LARGE_FILES
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_LARGE_FILES", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_LARGE_FFILES
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_LARGE_FFILES", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_LONG_LONG_T_DIFFERENT_FROM_LONG
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_LONG_LONG_T_DIFFERENT_FROM_LONG", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_MULTIPLE_FILEDLG_FILTERS
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_MULTIPLE_FILEDLG_FILTERS", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_NATIVE_ANIMATIONCTRL
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_NATIVE_ANIMATIONCTRL", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_NATIVE_DATAVIEWCTRL
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_NATIVE_DATAVIEWCTRL", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_NATIVE_WINDOW
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_NATIVE_WINDOW", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_NOEXCEPT
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_NOEXCEPT", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_NULLPTR_T
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_NULLPTR_T", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_IMAGES_IN_RESOURCES
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_IMAGES_IN_RESOURCES", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_POWER_EVENTS
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_POWER_EVENTS", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_RADIO_MENU_ITEMS
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_RADIO_MENU_ITEMS", hasDefine)
 
-    hasDefine = false;
 #ifdef wwxHAS_RAW_BITMAP
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_RAW_BITMAP", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_RAW_KEY_CODES
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_RAW_KEY_CODES", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_REGEX_ADVANCED
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_REGEX_ADVANCED", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_TASK_BAR_ICON
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_TASK_BAR_ICON", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_WINDOW_LABEL_IN_STATIC_BOX
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_WINDOW_LABEL_IN_STATIC_BOX", hasDefine)
 
-    hasDefine = false;
 #ifdef wxHAS_MODE_T
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_MODE_T", hasDefine)
-
 }
 
 } // anonymous namespace for helper classes
