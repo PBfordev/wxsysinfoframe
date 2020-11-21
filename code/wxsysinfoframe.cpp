@@ -320,6 +320,17 @@ void SystemColourView::DoUpdateValues()
 
     size.SetWidth(wxSystemSettings::GetMetric(wxSYS_SMALLICON_X, this));
     size.SetHeight(wxSystemSettings::GetMetric(wxSYS_SMALLICON_Y, this));
+
+    // work around wxSystemSettings::GetMetric(wxSYS_SMALLICON_{X|Y}) value
+    // being unavailable
+    if ( !size.IsFullySpecified() )
+    {
+        size.Set(16, 16);
+#if wxCHECK_VERSION(3, 1, 0)
+        size = FromDIP(size);
+#endif
+    }
+
     m_imageList->Create(size.GetWidth(), size.GetHeight(), false);
     SetImageList(m_imageList, wxIMAGE_LIST_SMALL);
 
