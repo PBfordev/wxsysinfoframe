@@ -26,6 +26,15 @@
 #include <wx/utils.h>
 #include <wx/wupdlock.h>
 
+#ifdef __WXMSW__
+    #include <uxtheme.h>
+    #include <winuser.h>
+#endif
+#ifdef __WXGTK__
+    #include <gtk/gtk.h>
+#endif
+
+
 #if !wxCHECK_VERSION(3, 0, 0)
     #error wxSystemInformationFrame requires wxWidgets version 3 or higher
 #endif
@@ -1290,6 +1299,9 @@ private:
         Param_AppClassName,
         Param_AppHasStderr,
         Param_IsProcess64bit,
+        Param_ThemeName,
+        Param_SystemAppearanceName,
+        Param_SystemAppearanceIsDark,
         Param_ComCtl32Version,
         Param_GDIObjectCount,
         Param_UserObjectCount,
@@ -1589,6 +1601,48 @@ protected:
     }
 };
 
+
+wxString GetThemeName()
+{
+    wxString name = "<Unsupported on This Platform>";
+
+#ifdef __WXMSW__
+    static const int buffSize = 1024;
+
+    WCHAR fileName[buffSize+1]{0};
+    WCHAR colorName[buffSize+1]{0};
+    WCHAR displayName[buffSize+1]{0};
+
+    if ( SUCCEEDED(::GetCurrentThemeName(fileName, buffSize, colorName, buffSize, NULL, 0)) )
+    {
+        if ( SUCCEEDED(::GetThemeDocumentationProperty(fileName, SZ_THDOCPROP_DISPLAYNAME, displayName, buffSize)) )
+        {
+            HIGHCONTRAST hc{0};
+
+            name.Printf("%s / %s", displayName, colorName);
+
+            hc.cbSize = sizeof(hc);
+            if ( ::SystemParametersInfo(SPI_GETHIGHCONTRAST, sizeof(hc), &hc, 0) )
+            {
+                if ( (hc.dwFlags & HCF_HIGHCONTRASTON) == HCF_HIGHCONTRASTON )
+                    name += _(" (High Contrast)");
+            }
+        }
+    }
+#endif
+
+#ifdef __WXGTK__
+    GtkSettings* settings = gtk_settings_get_default();
+    gchar* themeName = nullptr;
+
+    g_object_get(settings, "gtk-theme-name", &themeName, nullptr);
+    name = wxString::FromUTF8(themeName);
+    g_free(themeName);
+#endif
+
+    return name;
+}
+
 MiscellaneousView::~MiscellaneousView()
 {
     StopObtainFullHostNameThread();
@@ -1607,6 +1661,12 @@ MiscellaneousView::MiscellaneousView(wxWindow* parent)
     AppendItemWithData(_("App Class Name"), Param_AppClassName);
     AppendItemWithData(_("App HasStderr"), Param_AppHasStderr);
     AppendItemWithData(_("64-bit Process"), Param_IsProcess64bit);
+    AppendItemWithData(_("Theme Name"), Param_ThemeName);
+
+#if wxCHECK_VERSION(3, 1, 3)
+    AppendItemWithData(_("System Appearance Name"), Param_SystemAppearanceName);
+    AppendItemWithData(_("System Appearance IsDark"), Param_SystemAppearanceIsDark);
+#endif
 
 #ifdef __WXMSW__
     AppendItemWithData(_("ComCtl32.dll Version"), Param_ComCtl32Version);
@@ -1651,6 +1711,10 @@ void MiscellaneousView::DoUpdateValues()
     const DWORD UserObjectCount =  ::GetGuiResources(hCurrentProcess, GR_USEROBJECTS);
 #endif
 
+#if wxCHECK_VERSION(3, 1, 3)
+    const wxSystemAppearance systemAppearance = wxSystemSettings::GetAppearance();
+#endif
+
     wxGetOsVersion(&verMajor, &verMinor, &verMicro);
 
     StartObtainFullHostNameThread();
@@ -1669,6 +1733,11 @@ void MiscellaneousView::DoUpdateValues()
             case Param_AppClassName:              value = appInstance->GetClassName(); break;
             case Param_AppHasStderr:              value = appTraits->HasStderr() ? _("Yes") : _("No"); break;
             case Param_IsProcess64bit:            value = sizeof(void*) == 8 ? _("Yes") : _("No"); break;
+            case Param_ThemeName:                 value = GetThemeName(); break;
+#if wxCHECK_VERSION(3, 1, 3)
+            case Param_SystemAppearanceName:      value = systemAppearance.GetName(); break;
+            case Param_SystemAppearanceIsDark:    value = systemAppearance.IsDark() ? _("Yes") : _("No"); break;
+#endif
 
 #ifdef __WXMSW__
             case Param_ComCtl32Version:           value.Printf("%d", wxApp::GetComCtl32Version()); break;
