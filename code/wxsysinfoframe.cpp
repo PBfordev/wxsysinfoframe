@@ -139,7 +139,7 @@ wxArrayString SysInfoListView::GetNameAndValueValues(int nameColumnIndex, int va
 void SysInfoListView::AutoSizeColumns()
 {
     const int columnCount = GetColumnCount();
-    
+
     for ( int i = 0; i < columnCount; ++i )
     {
         const auto it = m_columnWidths.find(i);
@@ -839,7 +839,7 @@ wxString SysOptToString(const wxString& name)
 {
     if ( wxSystemOptions::HasOption(name) )
         return wxSystemOptions::GetOption(name);
-    
+
     return _("<Not Set>");
 }
 
@@ -1327,7 +1327,7 @@ private:
     };
 
     ObtainFullHostNameThread* m_obtainFullHostNameThread{nullptr};
-    
+
     void OnObtainFullHostNameThread(wxThreadEvent& event);
     void StartObtainFullHostNameThread();
     void StopObtainFullHostNameThread();
@@ -1403,7 +1403,7 @@ MSWDPIAwarenessHelper::ProcessDPIAwareness MSWDPIAwarenessHelper::GetThisProcess
 
             if ( !s_pfnGetProcessDpiAwareness )
                 s_dllShcore.Unload();
-        }        
+        }
 
         s_initialised = true;
     }
@@ -1592,10 +1592,10 @@ protected:
     wxEvtHandler* m_sink;
 
     ExitCode Entry() override
-    {   
+    {
         wxThreadEvent evt;
 
-        evt.SetString(wxGetFullHostName());        
+        evt.SetString(wxGetFullHostName());
         wxQueueEvent(m_sink, evt.Clone());
         return static_cast<wxThread::ExitCode>(nullptr);
     }
@@ -2583,7 +2583,7 @@ void wxSystemInformationFrame::OnShowwxInfoMessageBox(wxCommandEvent&)
 }
 
 void wxSystemInformationFrame::OnSave(wxCommandEvent&)
-{ 
+{
     const wxString fileName = wxFileSelector(_("Choose File Name"), "", "", "",
                                              _("Text Files (*.txt)|*.txt"),
                                              wxFD_SAVE | wxFD_OVERWRITE_PROMPT, this);
@@ -2599,10 +2599,10 @@ void wxSystemInformationFrame::OnSave(wxCommandEvent&)
             return;
         textFile.Clear();
     }
-    else    
+    else
     if ( !textFile.Create() )
         return;
- 
+
     const wxArrayString values = GetValues();
 
     for ( const auto& value : values )
@@ -2626,14 +2626,14 @@ void wxSystemInformationFrame::OnUpdateValuesTimer(wxTimerEvent&)
 void wxSystemInformationFrame::OnSysColourChanged(wxSysColourChangedEvent& event)
 {
     event.Skip();
-    LogInformation(_("wxSysColourChangedEvent arrived."));
+    LogInformation(_("wxSysColourChangedEvent received."));
     TriggerValuesUpdate();
 }
 
 void wxSystemInformationFrame::OnDisplayChanged(wxDisplayChangedEvent& event)
 {
     event.Skip();
-    LogInformation(_("wxDisplayChangedEvent arrived."));
+    LogInformation(_("wxDisplayChangedEvent received."));
     TriggerValuesUpdate();
 }
 
@@ -2642,9 +2642,9 @@ void wxSystemInformationFrame::OnDPIChanged(wxDPIChangedEvent& event)
 {
     const wxSize oldDPI = event.GetOldDPI();
     const wxSize newDPI = event.GetNewDPI();
-    
+
     event.Skip();
-    LogInformation(wxString::Format(_("wxDPIChangedEvent arrived: old DPI=%dx%d, new DPI=%dx%d."),
+    LogInformation(wxString::Format(_("wxDPIChangedEvent received: old DPI=%dx%d, new DPI=%dx%d."),
         oldDPI.GetWidth(), oldDPI.GetHeight(), newDPI.GetWidth(), newDPI.GetHeight()));
     TriggerValuesUpdate();
 }
