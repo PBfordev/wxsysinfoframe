@@ -1323,6 +1323,7 @@ private:
         Param_OSVersion,
         Param_LinuxDistributionInfo,
         Param_OSDirectory,
+        Param_CPUArchitectureName,
         Param_CPUCount,
         Param_IsPlatform64Bit,
         Param_IsPlatformLittleEndian,
@@ -1697,6 +1698,9 @@ MiscellaneousView::MiscellaneousView(wxWindow* parent)
     AppendItemWithData(_("Linux Distribution Info"), Param_LinuxDistributionInfo);
 #endif // #ifdef __LINUX__
     AppendItemWithData(_("OS Directory"), Param_OSDirectory);
+#if wxCHECK_VERSION(3, 1, 5)
+    AppendItemWithData(_("CPU Architecture Name"), Param_CPUArchitectureName);
+#endif
     AppendItemWithData(_("64-bit Platform"), Param_IsPlatform64Bit);
     AppendItemWithData(_("CPU Count"), Param_CPUCount);
     AppendItemWithData(_("Little Endian"), Param_IsPlatformLittleEndian);
@@ -1777,8 +1781,10 @@ void MiscellaneousView::DoUpdateValues()
 #ifdef __LINUX__
             case Param_LinuxDistributionInfo:     value.Printf("%s (%s)", linuxDistributionInfo.Description, linuxDistributionInfo.CodeName); break;
 #endif // #ifdef __LINUX__
-
             case Param_OSDirectory:               value = wxGetOSDirectory(); break;
+#if wxCHECK_VERSION(3, 1, 5)
+            case  Param_CPUArchitectureName:      value = wxGetCpuArchitectureName(); break;
+#endif
             case Param_IsPlatform64Bit:           value = wxIsPlatform64Bit() ? _("Yes") : _("No"); break;
             case Param_CPUCount:                  value.Printf("%d", wxThread::GetCPUCount()); break;
             case Param_IsPlatformLittleEndian:    value =  wxIsPlatformLittleEndian() ? _("Yes") : _("No"); break;
