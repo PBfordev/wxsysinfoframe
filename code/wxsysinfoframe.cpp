@@ -27,6 +27,10 @@
 #include <wx/wupdlock.h>
 
 #ifdef __WXMSW__
+    #include <cwchar>
+
+    #include <wx/msw/private.h>
+
     #include <uxtheme.h>
     #include <winuser.h>
 #endif
@@ -591,6 +595,69 @@ void SystemMetricView::DoUpdateValues()
 
 *************************************************/
 
+#ifdef __WXMSW__
+
+// The code for obtaining friendly monitor names is adapted from
+// https://gist.github.com/pavel-a/dd3a4320176e69a0f6c4b4871e69e56b
+
+BOOL CALLBACK MonitorInfoEnumProc(HMONITOR hMonitor, HDC, LPRECT, LPARAM dwData)
+{
+    WinStruct<MONITORINFOEXW> info;
+    UINT32 pathCount, modeCount;
+    std::vector<DISPLAYCONFIG_PATH_INFO> paths;
+    std::vector<DISPLAYCONFIG_MODE_INFO> modes;
+
+    if ( !::GetMonitorInfoW(hMonitor, &info) )
+        return FALSE;
+
+    if ( ::GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount) != ERROR_SUCCESS )
+        return FALSE;
+
+    if ( !pathCount || !modeCount )
+        return FALSE;
+
+    paths.resize(pathCount);
+    modes.resize(modeCount);
+
+    if ( ::QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS,
+            &pathCount, paths.data(), &modeCount, modes.data(), nullptr) != ERROR_SUCCESS )
+        return FALSE;
+
+    for ( const auto& p : paths )
+    {
+        DISPLAYCONFIG_SOURCE_DEVICE_NAME sourceName;
+
+        sourceName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+        sourceName.header.size = sizeof(sourceName);
+        sourceName.header.adapterId = p.sourceInfo.adapterId;
+        sourceName.header.id = p.sourceInfo.id;
+        if ( ::DisplayConfigGetDeviceInfo(&sourceName.header) != ERROR_SUCCESS )
+            return FALSE;
+
+        if ( ::wcscmp(info.szDevice, sourceName.viewGdiDeviceName) != 0 )
+            continue;
+
+        DISPLAYCONFIG_TARGET_DEVICE_NAME name;
+
+        name.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+        name.header.size = sizeof(name);
+        name.header.adapterId = p.sourceInfo.adapterId;
+        name.header.id = p.targetInfo.id;
+        if ( ::DisplayConfigGetDeviceInfo(&name.header) != ERROR_SUCCESS )
+            return FALSE;
+
+        wxArrayString* friendlyNames = reinterpret_cast<wxArrayString*>(dwData);
+
+        friendlyNames->push_back(wxString(name.monitorFriendlyDeviceName));
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+#endif // #ifdef __WXMSW__
+
+
 class DisplaysView : public SysInfoListView
 {
 public:
@@ -604,6 +671,7 @@ private:
     enum
     {
         Param_Name = 0,
+        Param_FriendlyName,
         Param_IsPrimary,
         Param_Resolution,
         Param_BPP,
@@ -623,6 +691,9 @@ DisplaysView::DisplaysView(wxWindow* parent)
     AppendColumn(_("Parameter"));
 
     AppendItemWithData(_("Name"), Param_Name);
+#ifdef __WXMSW__
+    AppendItemWithData(_("Friendly Name"), Param_FriendlyName);
+#endif
     AppendItemWithData(_("Is Primary"), Param_IsPrimary);
     AppendItemWithData(_("Resolution"), Param_Resolution);
     AppendItemWithData(_("Bits Per Pixel"), Param_BPP);
@@ -689,6 +760,13 @@ void DisplaysView::DoUpdateValues()
     const int displayForThisWindow = wxDisplay::GetFromWindow(wxGetTopLevelParent(this));
     const int itemCount = GetItemCount();
 
+#ifdef __WXMSW__
+    wxArrayString friendlyNames;
+
+    if ( !::EnumDisplayMonitors(nullptr, nullptr, MonitorInfoEnumProc, (LPARAM)&friendlyNames) )
+        friendlyNames.clear();
+#endif // #ifdef __WXMSW__
+
     for ( size_t displayIndex = 0; displayIndex < displayCount; ++displayIndex )
     {
         const wxDisplay display(displayIndex);
@@ -710,6 +788,14 @@ void DisplaysView::DoUpdateValues()
                 case Param_Name:
                     value = display.GetName();
                     break;
+#ifdef __WXMSW__
+                case Param_FriendlyName:
+                    if ( friendlyNames.size() == displayCount )
+                        value = friendlyNames[displayIndex];
+                    else
+                        value = _("N/A");
+                    break;
+#endif // #ifdef __WXMSW__
                 case Param_IsPrimary:
                     value =  display.IsPrimary() ? _("Yes") : _("No");
                     break;
