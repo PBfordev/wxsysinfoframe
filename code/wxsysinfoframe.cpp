@@ -23,6 +23,11 @@
 #include <wx/sysopt.h>
 #include <wx/textfile.h>
 #include <wx/thread.h>
+
+#if wxCHECK_VERSION(3, 1, 6)
+    #include <wx/uilocale.h>
+#endif
+
 #include <wx/utils.h>
 #include <wx/wupdlock.h>
 
@@ -37,7 +42,6 @@
 #ifdef __WXGTK__
     #include <gtk/gtk.h>
 #endif
-
 
 #if !wxCHECK_VERSION(3, 0, 0)
     #error wxSystemInformationFrame requires wxWidgets version 3 or higher
@@ -1403,6 +1407,9 @@ private:
         Param_UserName,
         Param_SystemEncodingName,
         Param_SystemLanguage,
+#if wxCHECK_VERSION(3, 1, 6)
+        Param_UILocaleName,
+#endif
         Param_HostName,
         Param_FullHostName,
         Param_OSDescription,
@@ -1776,6 +1783,9 @@ MiscellaneousView::MiscellaneousView(wxWindow* parent)
     AppendItemWithData(_("User Name"), Param_UserName);
     AppendItemWithData(_("System Encoding"), Param_SystemEncodingName);
     AppendItemWithData(_("System Language"), Param_SystemLanguage);
+#if wxCHECK_VERSION(3, 1, 6)
+    AppendItemWithData(_("UI Locale Name"), Param_UILocaleName);
+#endif
     AppendItemWithData(_("Host Name"), Param_HostName);
     AppendItemWithData(_("Full Host Name"), Param_FullHostName);
     AppendItemWithData(_("OS Description"), Param_OSDescription);
@@ -1860,6 +1870,9 @@ void MiscellaneousView::DoUpdateValues()
             case Param_UserName:                  value = wxGetUserName(); break;
             case Param_SystemEncodingName:        value = wxLocale::GetSystemEncodingName(); break;
             case Param_SystemLanguage:            value =  wxLocale::GetLanguageName(wxLocale::GetSystemLanguage()); break;
+#if wxCHECK_VERSION(3, 1, 6)
+            case Param_UILocaleName:              value =  wxUILocale::GetCurrent().GetName(); break;
+#endif
             case Param_HostName:                  value = wxGetHostName(); break;
             case Param_FullHostName:              value = _("<Evaluating...>"); break;
             case Param_OSDescription:             value =  wxGetOsDescription(); break;
