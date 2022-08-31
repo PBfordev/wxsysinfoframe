@@ -1,7 +1,7 @@
 /////////////////////////////////////////////////////////////////////////////
 // Author:      PB
 // Purpose:     Implementation of wxSystemInformationFrame and its helpers
-// Copyright:   (c) 2019-2021 PB <pbfordev@gmail.com>
+// Copyright:   (c) 2019-2022 PB <pbfordev@gmail.com>
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
