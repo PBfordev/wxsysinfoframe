@@ -2038,23 +2038,34 @@ void PreprocessorDefinesView::DoUpdateValues()
     APPEND_DEFINE_ITEM(__CYGWIN__)
 #endif
 
-#ifdef __WXMSW__
-    APPEND_DEFINE_ITEM(WXUSINGDLL)
-    APPEND_DEFINE_ITEM(_UNICODE)
-#endif
+    APPEND_DEFINE_ITEM(NDEBUG)
 
 #ifdef __WXGTK__
     APPEND_DEFINE_ITEM(__WXGTK3__)
 #endif
 
-    APPEND_DEFINE_ITEM(NDEBUG)
+#ifdef __WXMSW__
+    APPEND_DEFINE_ITEM(_UNICODE)
+    APPEND_DEFINE_ITEM(WXUSINGDLL)
+#endif
 
     const long ABIVersion = wxABI_VERSION;
     itemIndex = InsertItem(GetItemCount(), "wxABI_VERSION");
     SetItem(itemIndex, Column_Value, wxString::Format("%ld", ABIVersion));
 
+#ifdef WXWIN_COMPATIBILITY_2_8
     APPEND_DEFINE_ITEM(WXWIN_COMPATIBILITY_2_8)
+#endif
+#ifdef WXWIN_COMPATIBILITY_3_0
     APPEND_DEFINE_ITEM(WXWIN_COMPATIBILITY_3_0)
+#endif
+#ifdef WXWIN_COMPATIBILITY_3_2
+    APPEND_DEFINE_ITEM(WXWIN_COMPATIBILITY_3_2)
+#endif
+
+    itemIndex = InsertItem(GetItemCount(), "WX_BUILD_OPTIONS_SIGNATURE");
+    SetItem(itemIndex, Column_Value, WX_BUILD_OPTIONS_SIGNATURE);
+
     APPEND_DEFINE_ITEM(wxUSE_REPRODUCIBLE_BUILD)
     APPEND_DEFINE_ITEM(wxDEBUG_LEVEL)
     APPEND_DEFINE_ITEM(wxUSE_ON_FATAL_EXCEPTION)
@@ -2160,9 +2171,12 @@ void PreprocessorDefinesView::DoUpdateValues()
     APPEND_DEFINE_ITEM(wxUSE_WEBVIEW)
 #ifdef __WXMSW__
     APPEND_DEFINE_ITEM(wxUSE_WEBVIEW_IE)
-    #if wxCHECK_VERSION(3, 1, 4)
+    #ifdef wxUSE_WEBVIEW_EDGE
         APPEND_DEFINE_ITEM(wxUSE_WEBVIEW_EDGE)
-    #endif // #if wxCHECK_VERSION(3, 1, 4)
+    #endif
+    #ifdef wxUSE_WEBVIEW_EDGE_STATIC
+        APPEND_DEFINE_ITEM(wxUSE_WEBVIEW_EDGE_STATIC)
+    #endif
 #else
     APPEND_DEFINE_ITEM(wxUSE_WEBVIEW_WEBKIT)
 #endif // #else
