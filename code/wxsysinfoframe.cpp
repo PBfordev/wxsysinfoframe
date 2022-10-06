@@ -5,11 +5,14 @@
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
+#include <wx/wxprec.h>
+
 #include "wxsysinfoframe.h"
 
 #include <map>
 #include <set>
 
+#include <wx/animate.h>
 #include <wx/apptrait.h>
 #include <wx/colordlg.h>
 #include <wx/display.h>
@@ -18,17 +21,19 @@
 #include <wx/fontdlg.h>
 #include <wx/intl.h>
 #include <wx/listctrl.h>
+#include <wx/nativewin.h>
 #include <wx/notebook.h>
+#include <wx/power.h>
 #include <wx/settings.h>
 #include <wx/stdpaths.h>
 #include <wx/sysopt.h>
 #include <wx/textfile.h>
 #include <wx/thread.h>
-
+#include <wx/timer.h>
+#include <wx/tglbtn.h>
 #if wxCHECK_VERSION(3, 1, 6)
     #include <wx/uilocale.h>
 #endif
-
 #include <wx/utils.h>
 #include <wx/wupdlock.h>
 
@@ -2474,11 +2479,6 @@ void PreprocessorDefinesView::DoUpdateValues()
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_BITMAPTOGGLEBUTTON", hasDefine)
-
-#ifdef wxHAS_CONFIG_TEMPLATE_RW
-    hasDefine = true;
-#endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_CONFIG_TEMPLATE_RW", hasDefine)
 
 #ifdef wxHAS_MEMBER_DEFAULT
     hasDefine = true;

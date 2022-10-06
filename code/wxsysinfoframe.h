@@ -9,13 +9,16 @@
 #define WX_SYSTEM_INFORMATION_FRAME_H_DEFINED
 
 
-#define WX_SYSTEM_INFORMATION_FRAME_MAJOR_VERSION  2
-#define WX_SYSTEM_INFORMATION_FRAME_MINOR_VERSION  8
-#define WX_SYSTEM_INFORMATION_FRAME_VERSION_STRING "2.9"
+#define WX_SYSTEM_INFORMATION_FRAME_MAJOR_VERSION  3
+#define WX_SYSTEM_INFORMATION_FRAME_MINOR_VERSION  0
+#define WX_SYSTEM_INFORMATION_FRAME_VERSION_STRING "3.0"
 
-#include <wx/wx.h>
+#include <wx/frame.h>
+#include <wx/timer.h>
 
-class WXDLLIMPEXP_FWD_CORE wxNotebook; // to avoid including <wx/notebook.h> from a header file
+// avoid unnecessary includes
+class WXDLLIMPEXP_FWD_CORE wxNotebook;
+class WXDLLIMPEXP_FWD_CORE wxTextCtrl;
 
 class wxSystemInformationFrame : public wxFrame
 {
