@@ -7,10 +7,9 @@
 
 #include <wx/wxprec.h>
 
-#include "wxsysinfoframe.h"
-
-#include <map>
-#include <set>
+#if !wxCHECK_VERSION(3, 0, 0)
+    #error wxSystemInformationFrame requires wxWidgets version 3 or higher
+#endif
 
 #include <wx/animate.h>
 #include <wx/apptrait.h>
@@ -21,6 +20,9 @@
 #include <wx/fontdlg.h>
 #include <wx/intl.h>
 #include <wx/listctrl.h>
+#ifdef __WXMSW__
+    #include <wx/msw/private.h>
+#endif
 #include <wx/nativewin.h>
 #include <wx/notebook.h>
 #include <wx/power.h>
@@ -28,9 +30,9 @@
 #include <wx/stdpaths.h>
 #include <wx/sysopt.h>
 #include <wx/textfile.h>
+#include <wx/tglbtn.h>
 #include <wx/thread.h>
 #include <wx/timer.h>
-#include <wx/tglbtn.h>
 #if wxCHECK_VERSION(3, 1, 6)
     #include <wx/uilocale.h>
 #endif
@@ -40,8 +42,6 @@
 #ifdef __WXMSW__
     #include <cwchar>
 
-    #include <wx/msw/private.h>
-
     #include <uxtheme.h>
     #include <winuser.h>
 #endif
@@ -49,10 +49,10 @@
     #include <gtk/gtk.h>
 #endif
 
-#if !wxCHECK_VERSION(3, 0, 0)
-    #error wxSystemInformationFrame requires wxWidgets version 3 or higher
-#endif
+#include <map>
+#include <set>
 
+#include "wxsysinfoframe.h"
 
 namespace { // anonymous namespace for helper classes
 
