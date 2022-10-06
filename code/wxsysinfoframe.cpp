@@ -8,6 +8,7 @@
 #include "wxsysinfoframe.h"
 
 #include <map>
+#include <set>
 
 #include <wx/apptrait.h>
 #include <wx/colordlg.h>
@@ -228,8 +229,12 @@ protected:
 private:
     wxImageList* m_imageList{nullptr};
     wxColour m_outlineColour;
+    std::set<wxSystemColour> m_deprecatedColourList;
 
     wxBitmap CreateColourBitmap(const wxColour& colour, const wxSize& size);
+
+    void CreateDeprecatedColourList();
+    bool IsDeprecatedSystemColour(wxSystemColour index);
 };
 
 struct ColourInfo
@@ -286,10 +291,15 @@ ColourInfo const s_colourInfoArray[] =
 SystemColourView::SystemColourView(wxWindow* parent)
     : SystemSettingView(parent)
 {
+    CreateDeprecatedColourList();
+
     SetColourBitmapOutlineColour(GetDefaultColourBitmapOutlineColour());
 
     for ( size_t i = 0; i < WXSIZEOF(s_colourInfoArray); ++i )
     {
+        if ( IsDeprecatedSystemColour(s_colourInfoArray[i].index) )
+            continue;
+
          const wxString colourName = s_colourInfoArray[i].name;
          const wxString colourDescription = s_colourInfoArray[i].description;
          const long itemIndex = InsertItem(i, colourName, -1);
@@ -403,6 +413,67 @@ wxBitmap SystemColourView::CreateColourBitmap(const wxColour& colour, const wxSi
     memoryDC.SelectObject(wxNullBitmap);
 
     return bitmap;
+}
+
+void SystemColourView::CreateDeprecatedColourList()
+{
+#ifdef __WXMSW__
+// most system colors are deprecated in Windows 10 and newer
+// see https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getsyscolor
+
+    int verMajor = 0;
+
+    wxGetOsVersion(&verMajor);
+
+    if ( verMajor < 10 )
+        return;
+
+    wxCHECK_RET(m_deprecatedColourList.empty(), "list already created");
+
+    m_deprecatedColourList.insert(wxSYS_COLOUR_3DDKSHADOW);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_3DHIGHLIGHT);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_3DHILIGHT);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_3DLIGHT);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_3DSHADOW);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_ACTIVEBORDER);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_ACTIVECAPTION);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_APPWORKSPACE);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_BACKGROUND);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_BTNFACE);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_BTNHIGHLIGHT);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_BTNHILIGHT);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_BTNSHADOW);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_CAPTIONTEXT);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_DESKTOP);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_FRAMEBK);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_GRADIENTACTIVECAPTION);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_GRADIENTINACTIVECAPTION);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_INACTIVEBORDER);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_INACTIVECAPTION);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_INACTIVECAPTIONTEXT);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_INFOBK);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_INFOTEXT);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_LISTBOX);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_LISTBOXHIGHLIGHTTEXT);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_LISTBOXTEXT);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_MENU);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_MENUBAR);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_MENUHILIGHT);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_MENUTEXT);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_SCROLLBAR);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_WINDOW);
+    m_deprecatedColourList.insert(wxSYS_COLOUR_WINDOWFRAME);
+#endif
+}
+
+bool SystemColourView::IsDeprecatedSystemColour(wxSystemColour index)
+{
+#ifndef __WXMSW__
+    wxUnusedVar(index);
+    return false;
+#else
+    return m_deprecatedColourList.find(index) != m_deprecatedColourList.end();
+#endif
 }
 
 
