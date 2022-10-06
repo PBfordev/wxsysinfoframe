@@ -2545,7 +2545,7 @@ void PreprocessorDefinesView::DoUpdateValues()
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_RADIO_MENU_ITEMS", hasDefine)
 
-#ifdef wwxHAS_RAW_BITMAP
+#ifdef wxHAS_RAW_BITMAP
     hasDefine = true;
 #endif
     APPEND_HAS_FEATURE_ITEM("wxHAS_RAW_BITMAP", hasDefine)
