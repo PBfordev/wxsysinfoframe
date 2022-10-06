@@ -1465,6 +1465,7 @@ private:
         Param_AppClassName,
         Param_AppHasStderr,
         Param_IsProcess64bit,
+        Param_wxRCEmbedded,
         Param_UnixDesktopEnvironment,
         Param_ThemeName,
         Param_SystemAppearanceName,
@@ -1833,6 +1834,9 @@ MiscellaneousView::MiscellaneousView(wxWindow* parent)
     AppendItemWithData(_("App Class Name"), Param_AppClassName);
     AppendItemWithData(_("App HasStderr"), Param_AppHasStderr);
     AppendItemWithData(_("64-bit Process"), Param_IsProcess64bit);
+#ifdef __WXMSW__
+    AppendItemWithData(_("Is <wx/wx.rc> Embedded"), Param_wxRCEmbedded);
+#endif // #ifdef __WXMSW__
 #ifdef __UNIX__
     AppendItemWithData(_("Unix Desktop Environment"), Param_UnixDesktopEnvironment);
 #endif // #ifdef __UNIX__
@@ -1892,6 +1896,7 @@ void MiscellaneousView::DoUpdateValues()
     HANDLE hCurrentProcess = ::GetCurrentProcess();
     const DWORD GDIObjectCount = ::GetGuiResources(hCurrentProcess, GR_GDIOBJECTS);
     const DWORD UserObjectCount =  ::GetGuiResources(hCurrentProcess, GR_USEROBJECTS);
+    bool wxRCEmbedded = false;
 #endif
 #ifdef __LINUX__
     const wxLinuxDistributionInfo linuxDistributionInfo = wxGetLinuxDistributionInfo();
@@ -1900,6 +1905,14 @@ void MiscellaneousView::DoUpdateValues()
 #if wxCHECK_VERSION(3, 1, 3)
     const wxSystemAppearance systemAppearance = wxSystemSettings::GetAppearance();
 #endif
+
+#ifdef __WXMSW__
+    {
+        wxLogNull logNo;
+
+        wxRCEmbedded = wxBitmap("wxBITMAP_STD_COLOURS").IsOk();
+    }
+#endif // #ifdef __WXMSW__
 
     wxGetOsVersion(&verMajor, &verMinor, &verMicro);
 
@@ -1919,6 +1932,9 @@ void MiscellaneousView::DoUpdateValues()
             case Param_AppClassName:              value = appInstance->GetClassName(); break;
             case Param_AppHasStderr:              value = appTraits->HasStderr() ? _("Yes") : _("No"); break;
             case Param_IsProcess64bit:            value = sizeof(void*) == 8 ? _("Yes") : _("No"); break;
+#ifdef __WXMSW__
+            case Param_wxRCEmbedded:              value = wxRCEmbedded ? _("Yes") : _("No"); break;
+#endif // #ifdef __WXMSW__
 #ifdef __UNIX__
             case Param_UnixDesktopEnvironment:    value = appTraits->GetDesktopEnvironment(); break;
 #endif // #ifdef __UNIX__
