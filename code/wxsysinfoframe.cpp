@@ -458,15 +458,11 @@ void SystemColourView::CreateDeprecatedColourList()
     m_deprecatedColourList.insert(wxSYS_COLOUR_INACTIVECAPTIONTEXT);
     m_deprecatedColourList.insert(wxSYS_COLOUR_INFOBK);
     m_deprecatedColourList.insert(wxSYS_COLOUR_INFOTEXT);
-    m_deprecatedColourList.insert(wxSYS_COLOUR_LISTBOX);
-    m_deprecatedColourList.insert(wxSYS_COLOUR_LISTBOXHIGHLIGHTTEXT);
-    m_deprecatedColourList.insert(wxSYS_COLOUR_LISTBOXTEXT);
     m_deprecatedColourList.insert(wxSYS_COLOUR_MENU);
     m_deprecatedColourList.insert(wxSYS_COLOUR_MENUBAR);
     m_deprecatedColourList.insert(wxSYS_COLOUR_MENUHILIGHT);
     m_deprecatedColourList.insert(wxSYS_COLOUR_MENUTEXT);
     m_deprecatedColourList.insert(wxSYS_COLOUR_SCROLLBAR);
-    m_deprecatedColourList.insert(wxSYS_COLOUR_WINDOW);
     m_deprecatedColourList.insert(wxSYS_COLOUR_WINDOWFRAME);
 #endif
 }
