@@ -14,11 +14,13 @@
 #include <wx/animate.h>
 #include <wx/apptrait.h>
 #include <wx/colordlg.h>
+#include <wx/combo.h>
 #include <wx/display.h>
 #include <wx/dynlib.h>
 #include <wx/filename.h>
 #include <wx/fontdlg.h>
 #include <wx/intl.h>
+#include <wx/ipc.h>
 #include <wx/listctrl.h>
 #ifdef __WXMSW__
     #include <wx/msw/private.h>
@@ -2200,7 +2202,6 @@ void PreprocessorDefinesView::DoUpdateValues()
     APPEND_DEFINE_ITEM(wxUSE_STD_IOSTREAM)
     APPEND_DEFINE_ITEM(wxUSE_STD_STRING)
     APPEND_DEFINE_ITEM(wxUSE_STD_STRING_CONV_IN_WXSTRING)
-    APPEND_DEFINE_ITEM(wxUSE_IOSTREAMH)
     APPEND_DEFINE_ITEM(wxUSE_LONGLONG)
     APPEND_DEFINE_ITEM(wxUSE_BASE64)
     APPEND_DEFINE_ITEM(wxUSE_CONSOLE_EVENTLOOP)
@@ -2436,9 +2437,6 @@ void PreprocessorDefinesView::DoUpdateValues()
     APPEND_DEFINE_ITEM(wxUSE_MS_HTML_HELP)
     APPEND_DEFINE_ITEM(wxUSE_OLE)
     APPEND_DEFINE_ITEM(wxUSE_OLE_AUTOMATION)
-    APPEND_DEFINE_ITEM(wxUSE_OLE_CLIPBOARD)
-    APPEND_DEFINE_ITEM(wxUSE_POSTSCRIPT_ARCHITECTURE_IN_MSW)
-    APPEND_DEFINE_ITEM(wxUSE_PS_PRINTING)
     APPEND_DEFINE_ITEM(wxUSE_REGKEY)
     APPEND_DEFINE_ITEM(wxUSE_RICHEDIT)
     APPEND_DEFINE_ITEM(wxUSE_RICHEDIT2)
