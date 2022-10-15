@@ -7,6 +7,10 @@
 
 #include <wx/wxprec.h>
 
+#ifndef WX_PRECOMP
+    #include <wx/wx.h>
+#endif
+
 #if !wxCHECK_VERSION(3, 0, 0)
     #error wxSystemInformationFrame requires wxWidgets version 3 or higher
 #endif
