@@ -2648,9 +2648,13 @@ bool wxSystemInformationFrame::Create(wxWindow *parent, wxWindowID id, const wxS
     refreshButton->Bind(wxEVT_BUTTON, &wxSystemInformationFrame::OnRefresh, this);
     buttonSizer->Add(refreshButton, wxSizerFlags().Border(wxRIGHT));
 
-    wxButton* detailsButton = new wxButton(mainPanel, wxID_ANY, _("wxSYS Colour or Font Details..."));
-    detailsButton->Bind(wxEVT_BUTTON, &wxSystemInformationFrame::OnShowDetailedInformation, this);
-    buttonSizer->Add(detailsButton, wxSizerFlags().Border(wxRIGHT));
+    wxButton* detailsButton = nullptr;
+    if ( createFlags & (ViewSystemColours | ViewSystemFonts) )
+    {
+        detailsButton = new wxButton(mainPanel, wxID_ANY, _("wxSYS Colour or Font Details..."));
+        detailsButton->Bind(wxEVT_BUTTON, &wxSystemInformationFrame::OnShowDetailedInformation, this);
+        buttonSizer->Add(detailsButton, wxSizerFlags().Border(wxRIGHT));
+    }
 
     wxButton* wxInfoButton = new wxButton(mainPanel, wxID_ANY, _("wxInfoMessageBox..."));
     wxInfoButton->Bind(wxEVT_BUTTON, &wxSystemInformationFrame::OnShowwxInfoMessageBox, this);
@@ -2711,7 +2715,8 @@ bool wxSystemInformationFrame::Create(wxWindow *parent, wxWindowID id, const wxS
 
     mainPanel->SetSizer(mainPanelSizer);
 
-    detailsButton->Bind(wxEVT_UPDATE_UI, &wxSystemInformationFrame::OnUpdateUI, this);
+    if ( detailsButton )
+        detailsButton->Bind(wxEVT_UPDATE_UI, &wxSystemInformationFrame::OnUpdateUI, this);
 
     m_valuesUpdateTimer.SetOwner(this);
     Bind(wxEVT_TIMER, &wxSystemInformationFrame::OnUpdateValuesTimer, this);
