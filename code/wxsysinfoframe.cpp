@@ -2746,7 +2746,7 @@ WXLRESULT wxSystemInformationFrame::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, 
     }
     if ( nMsg == WM_THEMECHANGED )
     {
-        LogInformation(wxString::Format("WM_THEMECHANGED received: wParam = %xu, lParam =%xl", (unsigned)wParam, (long)lParam));
+        LogInformation(wxString::Format("WM_THEMECHANGED received: wParam = %x, lParam =%lx", (unsigned)wParam, (long)lParam));
         TriggerValuesUpdate();
     }
 #if !wxCHECK_VERSION(3, 1, 3) // 3.1.3+ has wxEVT_DPI_CHANGED
