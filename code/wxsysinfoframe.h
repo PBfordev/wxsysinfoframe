@@ -10,8 +10,8 @@
 
 
 #define WX_SYSTEM_INFORMATION_FRAME_MAJOR_VERSION  3
-#define WX_SYSTEM_INFORMATION_FRAME_MINOR_VERSION  3
-#define WX_SYSTEM_INFORMATION_FRAME_VERSION_STRING "3.3"
+#define WX_SYSTEM_INFORMATION_FRAME_MINOR_VERSION  4
+#define WX_SYSTEM_INFORMATION_FRAME_VERSION_STRING "3.4"
 
 #include <wx/frame.h>
 #include <wx/timer.h>
@@ -26,7 +26,7 @@ public:
     enum CreateFlags
     {
         // whether the values automatically refresh in response to
-        // WM_SETTINGCHANGE, WM_DPICHANGED, wxEVT_SYS_COLOUR_CHANGED, and wxEVT_DISPLAY_CHANGED
+        // certain WM_* messages
         AutoRefresh = 1,
 
         // whether to display these pages with values, at least one of these
@@ -72,7 +72,7 @@ public:
     // therefore value for each parameter.
     wxArrayString GetValues(const wxString& separator = "\t") const;
 
-#ifdef __WXMSW__ // for WM_SETTINGCHANGE and WM_DPICHANGED
+#ifdef __WXMSW__ // for WM_* messages
     WXLRESULT MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam) override;
 #endif // #ifdef __WXMSW__
 
