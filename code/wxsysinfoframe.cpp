@@ -2664,6 +2664,13 @@ bool wxSystemInformationFrame::Create(wxWindow *parent, wxWindowID id, const wxS
     saveButton ->Bind(wxEVT_BUTTON, &wxSystemInformationFrame::OnSave, this);
     buttonSizer->Add(saveButton , wxSizerFlags().Border(wxRIGHT));
 
+    // to move the button after it to the very right
+    buttonSizer->AddStretchSpacer(1);
+
+    wxButton* clearLogButton = new wxButton(mainPanel, wxID_ANY, _("Clear log"));
+    clearLogButton->Bind(wxEVT_BUTTON, &wxSystemInformationFrame::OnClearLog, this);
+    buttonSizer->Add(clearLogButton, wxSizerFlags().Border(wxRIGHT));
+
     mainPanelSizer->Add(buttonSizer, wxSizerFlags().Proportion(0).Expand().Border());
 
     // add a notebook with pages for groups of system information
@@ -2871,6 +2878,11 @@ void wxSystemInformationFrame::OnSave(wxCommandEvent&)
         textFile.AddLine(value);
 
     textFile.Write();
+}
+
+void wxSystemInformationFrame::OnClearLog(wxCommandEvent&)
+{
+    m_logCtrl->Clear();
 }
 
 void wxSystemInformationFrame::OnUpdateUI(wxUpdateUIEvent& event)

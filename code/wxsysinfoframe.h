@@ -10,8 +10,8 @@
 
 
 #define WX_SYSTEM_INFORMATION_FRAME_MAJOR_VERSION  4
-#define WX_SYSTEM_INFORMATION_FRAME_MINOR_VERSION  1
-#define WX_SYSTEM_INFORMATION_FRAME_VERSION_STRING "4.1"
+#define WX_SYSTEM_INFORMATION_FRAME_MINOR_VERSION  2
+#define WX_SYSTEM_INFORMATION_FRAME_VERSION_STRING "4.2"
 
 #include <wx/frame.h>
 #include <wx/timer.h>
@@ -95,6 +95,7 @@ private:
     void OnShowDetailedInformation(wxCommandEvent&);
     void OnShowwxInfoMessageBox(wxCommandEvent&);
     void OnSave(wxCommandEvent&);
+    void OnClearLog(wxCommandEvent&);
     void OnUpdateUI(wxUpdateUIEvent& event);
     void OnUpdateValuesTimer(wxTimerEvent&);
     void OnSysColourChanged(wxSysColourChangedEvent& event);
