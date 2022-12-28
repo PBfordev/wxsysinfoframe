@@ -954,6 +954,7 @@ private:
         Param_MSWNotebookThemedBackground,
         Param_MSWStaticBoxOptimizedPaint,
         Param_MSWFontNoProofQuality,
+        Param_MSWWindowNoComposited,
 
         // GTK options
         Param_GTKTLWCanSetTransparent,
@@ -984,6 +985,7 @@ SystemOptionsView::SystemOptionsView(wxWindow* parent)
     AppendItemWithData(wxS("msw.notebook.themed-background"), Param_MSWNotebookThemedBackground);
     AppendItemWithData(wxS("msw.staticbox.optimized-paint"), Param_MSWStaticBoxOptimizedPaint);
     AppendItemWithData(wxS("msw.font.no-proof-quality"), Param_MSWFontNoProofQuality);
+    AppendItemWithData(wxS("msw.window.no-composited"), Param_MSWWindowNoComposited);
 #endif // #ifdef __WXMSW__
 
 #ifdef __WXGTK__
@@ -1030,6 +1032,7 @@ void SystemOptionsView::DoUpdateValues()
             case Param_MSWNotebookThemedBackground: value = SysOptToString(wxS("msw.notebook.themed-background")); break;
             case Param_MSWStaticBoxOptimizedPaint:  value = SysOptToString(wxS("msw.staticbox.optimized-paint")); break;
             case Param_MSWFontNoProofQuality:       value = SysOptToString(wxS("msw.font.no-proof-quality")); break;
+            case Param_MSWWindowNoComposited:       value = SysOptToString(wxS("msw.window.no-composited")); break;
 
             case Param_GTKTLWCanSetTransparent:        value = SysOptToString(wxS("gtk.tlw.can-set-transparent")); break;
             case Param_GTKDesktop:                     value = SysOptToString(wxS("gtk.desktop")); break;
