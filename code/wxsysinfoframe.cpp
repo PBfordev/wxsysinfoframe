@@ -955,6 +955,7 @@ private:
         Param_MSWStaticBoxOptimizedPaint,
         Param_MSWFontNoProofQuality,
         Param_MSWWindowNoComposited,
+        Param_MSWDarkMode,
 
         // GTK options
         Param_GTKTLWCanSetTransparent,
@@ -986,6 +987,7 @@ SystemOptionsView::SystemOptionsView(wxWindow* parent)
     AppendItemWithData(wxS("msw.staticbox.optimized-paint"), Param_MSWStaticBoxOptimizedPaint);
     AppendItemWithData(wxS("msw.font.no-proof-quality"), Param_MSWFontNoProofQuality);
     AppendItemWithData(wxS("msw.window.no-composited"), Param_MSWWindowNoComposited);
+    AppendItemWithData(wxS("msw.dark-mode"), Param_MSWDarkMode);
 #endif // #ifdef __WXMSW__
 
 #ifdef __WXGTK__
@@ -1033,6 +1035,7 @@ void SystemOptionsView::DoUpdateValues()
             case Param_MSWStaticBoxOptimizedPaint:  value = SysOptToString(wxS("msw.staticbox.optimized-paint")); break;
             case Param_MSWFontNoProofQuality:       value = SysOptToString(wxS("msw.font.no-proof-quality")); break;
             case Param_MSWWindowNoComposited:       value = SysOptToString(wxS("msw.window.no-composited")); break;
+            case Param_MSWDarkMode:                 value = SysOptToString(wxS("msw.dark-mode")); break;
 
             case Param_GTKTLWCanSetTransparent:        value = SysOptToString(wxS("gtk.tlw.can-set-transparent")); break;
             case Param_GTKDesktop:                     value = SysOptToString(wxS("gtk.desktop")); break;
@@ -1475,6 +1478,8 @@ private:
         Param_ThemeName,
         Param_SystemAppearanceName,
         Param_SystemAppearanceIsDark,
+        Param_SystemAppearanceIsSystemDark,
+        Param_SystemAppearanceAreAppsDark,
         Param_ComCtl32Version,
         Param_GDIObjectCount,
         Param_UserObjectCount,
@@ -1851,6 +1856,11 @@ MiscellaneousView::MiscellaneousView(wxWindow* parent)
     AppendItemWithData(_("System Appearance IsDark"), Param_SystemAppearanceIsDark);
 #endif
 
+#if defined(__WXMSW__) && wxCHECK_VERSION(3, 3, 0)
+    AppendItemWithData(_("System Appearance IsSystemDark"), Param_SystemAppearanceIsSystemDark);
+    AppendItemWithData(_("System Appearance AreAppsDark"), Param_SystemAppearanceAreAppsDark);
+#endif //#if defined(__WXMSW__) && wxCHECK_VERSION(3, 3, 0)
+
 #ifdef __WXMSW__
     AppendItemWithData(_("ComCtl32.dll Version"), Param_ComCtl32Version);
     AppendItemWithData(_("GDI Object Count"), Param_GDIObjectCount);
@@ -1949,6 +1959,11 @@ void MiscellaneousView::DoUpdateValues()
             case Param_SystemAppearanceName:      value = systemAppearance.GetName(); break;
             case Param_SystemAppearanceIsDark:    value = systemAppearance.IsDark() ? _("Yes") : _("No"); break;
 #endif
+
+#if defined(__WXMSW__) && wxCHECK_VERSION(3, 3, 0)
+            case Param_SystemAppearanceIsSystemDark: value = systemAppearance.IsSystemDark() ? _("Yes") : _("No"); break;
+            case Param_SystemAppearanceAreAppsDark:  value = systemAppearance.AreAppsDark() ? _("Yes") : _("No"); break;
+#endif //#if defined(__WXMSW__) && wxCHECK_VERSION(3, 3, 0)
 
 #ifdef __WXMSW__
             case Param_ComCtl32Version:           value.Printf("%d", wxApp::GetComCtl32Version()); break;
