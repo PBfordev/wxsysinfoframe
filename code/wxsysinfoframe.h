@@ -10,8 +10,8 @@
 
 
 #define WX_SYSTEM_INFORMATION_FRAME_MAJOR_VERSION  3
-#define WX_SYSTEM_INFORMATION_FRAME_MINOR_VERSION  5
-#define WX_SYSTEM_INFORMATION_FRAME_VERSION_STRING "3.5"
+#define WX_SYSTEM_INFORMATION_FRAME_MINOR_VERSION  6
+#define WX_SYSTEM_INFORMATION_FRAME_VERSION_STRING "3.6"
 
 #include <wx/frame.h>
 #include <wx/timer.h>
@@ -83,6 +83,8 @@ private:
     wxTextCtrl* m_logCtrl{nullptr};
 
     wxTimer m_valuesUpdateTimer;
+
+    wxArrayString m_unloggedInformation;
 
     void LogInformation(const wxString& information);
 

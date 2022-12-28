@@ -2690,6 +2690,12 @@ bool wxSystemInformationFrame::Create(wxWindow *parent, wxWindowID id, const wxS
                                 wxTE_MULTILINE | wxTE_READONLY | wxTE_RICH2);
     mainPanelSizer->Add(m_logCtrl, wxSizerFlags().Proportion(1).Expand().Border());
 
+    if ( !m_unloggedInformation.empty() )
+    {
+        for ( size_t i = 0; i < m_unloggedInformation.size(); ++i )
+            m_logCtrl->AppendText(m_unloggedInformation[i]);
+    }
+
     mainPanel->SetSizer(mainPanelSizer);
 
     detailsButton->Bind(wxEVT_UPDATE_UI, &wxSystemInformationFrame::OnUpdateUI, this);
@@ -2765,7 +2771,13 @@ void wxSystemInformationFrame::LogInformation(const wxString& information)
         timeStampFormat = "%c";
 
     message.Printf("%s: %s\n", wxDateTime::Now().Format(timeStampFormat), information);
-    m_logCtrl->AppendText(message);
+
+    // LogInformation() can be called before m_logCtrl is created,
+    // from overriden MSWWindowProc()
+    if ( m_logCtrl )
+        m_logCtrl->AppendText(message);
+    else
+        m_unloggedInformation.push_back(message);
 }
 
 void wxSystemInformationFrame::TriggerValuesUpdate()
