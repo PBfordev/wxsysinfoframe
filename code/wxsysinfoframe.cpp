@@ -1,7 +1,7 @@
 /////////////////////////////////////////////////////////////////////////////
 // Author:      PB
 // Purpose:     Implementation of wxSystemInformationFrame and its helpers
-// Copyright:   (c) 2019-2022 PB <pbfordev@gmail.com>
+// Copyright:   (c) 2019-2023 PB <pbfordev@gmail.com>
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
@@ -60,7 +60,19 @@
 
 #include "wxsysinfoframe.h"
 
-namespace { // anonymous namespace for helper classes
+namespace { // anonymous namespace for helper classes and functions
+
+wxString wxRectTowxString(const wxRect& r)
+{
+    return wxString::Format(_("%d, %d; %d, %d"),
+        r.GetLeft(), r.GetTop(), r.GetRight(), r.GetBottom());
+}
+
+wxString wxSizeTowxString(const wxSize& s)
+{
+    return wxString::Format(_("%d x %d"), s.x, s.y);
+}
+
 
 /*************************************************
 
@@ -539,6 +551,8 @@ void SystemFontView::DoUpdateValues()
 {
     const int itemCount = GetItemCount();
 
+    wxLogNull logNo;
+
     for ( int i = 0; i < itemCount; ++i )
     {
          const wxFont font = wxSystemSettings::GetFont(s_fontInfoArray[GetItemData(i)].index);
@@ -827,12 +841,6 @@ wxArrayString DisplaysView::GetValues(const wxString& separator) const
     return values;
 }
 
-wxString wxRectTowxString(const wxRect& r)
-{
-    return wxString::Format(_("%d, %d; %d, %d"),
-        r.GetLeft(), r.GetTop(), r.GetRight(), r.GetBottom());
-}
-
 void DisplaysView::DoUpdateValues()
 {
     while ( GetColumnCount() > 1 )
@@ -855,7 +863,6 @@ void DisplaysView::DoUpdateValues()
         const wxVideoMode videoMode = display.GetCurrentMode();
         const wxRect geometryCoords = display.GetGeometry();
         const wxRect clientAreaCoords = display.GetClientArea();
-        const wxSize ppi = display.GetPPI();
         const int columnIndex = displayIndex + 1;
 
         AppendColumn(wxString::Format("wxDisplay(%zu)", displayIndex));
@@ -882,7 +889,7 @@ void DisplaysView::DoUpdateValues()
                     value =  display.IsPrimary() ? _("Yes") : _("No");
                     break;
                 case Param_Resolution:
-                    value.Printf(_("%d x %d"), videoMode.GetWidth(), videoMode.GetHeight());
+                    value = wxSizeTowxString(wxSize(videoMode.GetWidth(), videoMode.GetHeight()));
                     break;
                 case Param_BPP:
                     value.Printf("%d", videoMode.GetDepth());
@@ -894,16 +901,16 @@ void DisplaysView::DoUpdateValues()
                     value = wxRectTowxString(geometryCoords);
                     break;
                 case Param_GeometrySize:
-                    value.Printf(_("%d x %d"), geometryCoords.GetWidth(), geometryCoords.GetHeight());
+                    value = wxSizeTowxString(geometryCoords.GetSize());
                     break;
                 case Param_ClientAreaCoords:
                     value = wxRectTowxString(clientAreaCoords);
                     break;
                 case Param_ClientAreaSize:
-                    value.Printf(_("%d x %d"), clientAreaCoords.GetWidth(), clientAreaCoords.GetHeight());
+                    value = wxSizeTowxString(clientAreaCoords.GetSize());
                     break;
                 case Param_PPI:
-                    value.Printf(_("%d x %d"), ppi.GetWidth(), ppi.GetHeight());
+                    value = wxSizeTowxString(display.GetPPI());
                     break;
                 case Param_HasThisWindow:
                     value = displayForThisWindow == displayIndex ? _("Yes") : _("No");
@@ -1549,7 +1556,7 @@ public:
 
 bool MSWDPIAwarenessHelper::IsThisProcessDPIAware()
 {
-    typedef BOOL (WINAPI *IsProcessDPIAware_t)();
+    using IsProcessDPIAware_t = BOOL(WINAPI*)();
 
     static bool s_initialised = false;
     static IsProcessDPIAware_t s_pfnIsProcessDPIAware = nullptr;
@@ -1570,7 +1577,7 @@ bool MSWDPIAwarenessHelper::IsThisProcessDPIAware()
 
 MSWDPIAwarenessHelper::ProcessDPIAwareness MSWDPIAwarenessHelper::GetThisProcessDPIAwareness()
 {
-    typedef HRESULT (WINAPI *GetProcessDpiAwareness_t)(HANDLE, DWORD*);
+    using GetProcessDpiAwareness_t = HRESULT(WINAPI*)(HANDLE, DWORD*);
 
     static bool s_initialised = false;
     static wxDynamicLibrary s_dllShcore;
@@ -1636,7 +1643,7 @@ wxString MSWDPIAwarenessHelper::GetThisProcessDPIAwarenessStr()
 
 unsigned MSWDPIAwarenessHelper::GetSystemDpiForThisProcess()
 {
-    typedef unsigned (WINAPI *GetSystemDpiForProcess_t)(HANDLE);
+    using GetSystemDpiForProcess_t = unsigned(WINAPI*)(HANDLE);
 
     static bool s_initialised = false;
     static GetSystemDpiForProcess_t s_pfnGetSystemDpiForProcess = nullptr;
@@ -1657,7 +1664,7 @@ unsigned MSWDPIAwarenessHelper::GetSystemDpiForThisProcess()
 
 unsigned MSWDPIAwarenessHelper::GetDpiForWindow(wxWindow* win)
 {
-    typedef unsigned (WINAPI *GetDpiForWindow_t)(HWND);
+    using GetDpiForWindow_t = unsigned (WINAPI*)(HWND);
 
     static bool s_initialised = false;
     static GetDpiForWindow_t s_pfnGetDpiForWindow = nullptr;
@@ -1678,16 +1685,16 @@ unsigned MSWDPIAwarenessHelper::GetDpiForWindow(wxWindow* win)
 
 MSWDPIAwarenessHelper::DPIAwarenessContext MSWDPIAwarenessHelper::GetThreadDPIAwarenessContext()
 {
-    typedef HANDLE MSW_DPI_AWARENESS_CONTEXT;
+    using MSW_DPI_AWARENESS_CONTEXT = HANDLE;
     static const MSW_DPI_AWARENESS_CONTEXT MSW_DPI_AWARENESS_CONTEXT_UNAWARE              = (MSW_DPI_AWARENESS_CONTEXT)-1;
     static const MSW_DPI_AWARENESS_CONTEXT MSW_DPI_AWARENESS_CONTEXT_SYSTEM_AWARE         = (MSW_DPI_AWARENESS_CONTEXT)-2;
     static const MSW_DPI_AWARENESS_CONTEXT MSW_DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE    = (MSW_DPI_AWARENESS_CONTEXT)-3;
     static const MSW_DPI_AWARENESS_CONTEXT MSW_DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = (MSW_DPI_AWARENESS_CONTEXT)-4;
     static const MSW_DPI_AWARENESS_CONTEXT MSW_DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED    = (MSW_DPI_AWARENESS_CONTEXT)-5;
 
-    typedef MSW_DPI_AWARENESS_CONTEXT (WINAPI *GetThreadDpiAwarenessContext_t)();
-    typedef BOOL (WINAPI *IsValidDpiAwarenessContext_t)(MSW_DPI_AWARENESS_CONTEXT);
-    typedef BOOL (WINAPI *AreDpiAwarenessContextsEqual_t)(MSW_DPI_AWARENESS_CONTEXT, MSW_DPI_AWARENESS_CONTEXT);
+    using GetThreadDpiAwarenessContext_t = MSW_DPI_AWARENESS_CONTEXT(WINAPI*)();
+    using IsValidDpiAwarenessContext_t   = BOOL(WINAPI*)(MSW_DPI_AWARENESS_CONTEXT);
+    using AreDpiAwarenessContextsEqual_t = BOOL(WINAPI*)(MSW_DPI_AWARENESS_CONTEXT, MSW_DPI_AWARENESS_CONTEXT);
 
     static bool s_initialised = false;
     static GetThreadDpiAwarenessContext_t s_pfnGetThreadDpiAwarenessContext = nullptr;
@@ -1794,7 +1801,7 @@ wxString GetThemeName()
     WCHAR colorName[buffSize+1]{0};
     WCHAR displayName[buffSize+1]{0};
 
-    if ( SUCCEEDED(::GetCurrentThemeName(fileName, buffSize, colorName, buffSize, NULL, 0)) )
+    if ( SUCCEEDED(::GetCurrentThemeName(fileName, buffSize, colorName, buffSize, nullptr, 0)) )
     {
         if ( SUCCEEDED(::GetThemeDocumentationProperty(fileName, SZ_THDOCPROP_DISPLAYNAME, displayName, buffSize)) )
         {
@@ -2778,7 +2785,7 @@ WXLRESULT wxSystemInformationFrame::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, 
     else
     if ( nMsg ==  0x02E0 ) // 0x02E0 = WM_DPICHANGED
     {
-        LogInformation(wxString::Format("WM_DPICHANGED received: new DPI = %ux%u",
+        LogInformation(wxString::Format("WM_DPICHANGED received: new DPI = %u x %u",
             (unsigned)LOWORD(wParam), (unsigned)HIWORD(wParam)));
         TriggerValuesUpdate();
     }
@@ -2914,12 +2921,9 @@ void wxSystemInformationFrame::OnDisplayChanged(wxDisplayChangedEvent& event)
 #if wxCHECK_VERSION(3, 1, 3)
 void wxSystemInformationFrame::OnDPIChanged(wxDPIChangedEvent& event)
 {
-    const wxSize oldDPI = event.GetOldDPI();
-    const wxSize newDPI = event.GetNewDPI();
-
     event.Skip();
-    LogInformation(wxString::Format(_("wxDPIChangedEvent received: old DPI=%dx%d, new DPI=%dx%d."),
-        oldDPI.GetWidth(), oldDPI.GetHeight(), newDPI.GetWidth(), newDPI.GetHeight()));
+    LogInformation(wxString::Format(_("wxDPIChangedEvent received: old DPI = %s, new DPI = %s."),
+        wxSizeTowxString(event.GetOldDPI()), wxSizeTowxString(event.GetNewDPI())));
     TriggerValuesUpdate();
 }
 #endif

@@ -1,7 +1,7 @@
 /////////////////////////////////////////////////////////////////////////////
 // Author:      PB
 // Purpose:     wxSystemInformationFrame definition
-// Copyright:   (c) 2019-2022 PB <pbfordev@gmail.com>
+// Copyright:   (c) 2019-2023 PB <pbfordev@gmail.com>
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
@@ -10,8 +10,8 @@
 
 
 #define WX_SYSTEM_INFORMATION_FRAME_MAJOR_VERSION  4
-#define WX_SYSTEM_INFORMATION_FRAME_MINOR_VERSION  2
-#define WX_SYSTEM_INFORMATION_FRAME_VERSION_STRING "4.2"
+#define WX_SYSTEM_INFORMATION_FRAME_MINOR_VERSION  3
+#define WX_SYSTEM_INFORMATION_FRAME_VERSION_STRING "4.3"
 
 #include <wx/frame.h>
 #include <wx/timer.h>
