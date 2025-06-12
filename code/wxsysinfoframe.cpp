@@ -55,6 +55,13 @@
     #include <gtk/gtk.h>
 #endif
 
+#if (__cplusplus >= 202002L)
+    #include <version.h>
+#else
+    #include <ciso646>
+#endif
+
+
 #include <map>
 #include <set>
 
@@ -2126,12 +2133,14 @@ void PreprocessorDefinesView::DoUpdateValues()
     APPEND_DEFINE_ITEM(_MSVC_LANG)
     APPEND_DEFINE_ITEM(_DEBUG)
     APPEND_DEFINE_ITEM(_DLL)
+    APPEND_DEFINE_ITEM(_MSVC_STL_VERSION)
 #endif // #ifdef _MSC_VER
 
 #ifdef __GNUC__
     APPEND_DEFINE_ITEM(__GNUC__)
     APPEND_DEFINE_ITEM(__GNUC_MINOR__)
     APPEND_DEFINE_ITEM(__GNUC_PATCHLEVEL__)
+    APPEND_DEFINE_ITEM __GLIBCXX__)
 #endif // #ifdef(__GNUC__)
 
 #ifdef __MINGW32__
@@ -2159,6 +2168,7 @@ void PreprocessorDefinesView::DoUpdateValues()
     APPEND_DEFINE_ITEM(__clang_major__)
     APPEND_DEFINE_ITEM(__clang_minor__)
     APPEND_DEFINE_ITEM(__clang_patchlevel__)
+    APPEND_DEFINE_ITEM(_LIBCPP_VERSION)
 #endif
 
 #ifdef __CYGWIN__
