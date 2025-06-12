@@ -2082,7 +2082,7 @@ void PreprocessorDefinesView::DoUpdateValues()
     APPEND_DEFINE_ITEM(__GNUC__)
     APPEND_DEFINE_ITEM(__GNUC_MINOR__)
     APPEND_DEFINE_ITEM(__GNUC_PATCHLEVEL__)
-    APPEND_DEFINE_ITEM __GLIBCXX__)
+    APPEND_DEFINE_ITEM(__GLIBCXX__)
 #endif // #ifdef(__GNUC__)
 
 #ifdef __MINGW32__
