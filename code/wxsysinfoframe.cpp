@@ -953,11 +953,14 @@ private:
     enum
     {
         Param_ExitOnAssert = 0,
+        Param_CatchUnhandledExceptions,
 
         // MSW options
 
         Param_MSWDarkMode,
         Param_MSWFontNoProofQuality,
+        Param_MSWNativeDialogsPMDPI,
+        Param_MSWNoManifestCheck,
         Param_MSWNotebookThemedBackground,
         Param_MSWRemap,
         Param_MSWStaticBoxOptimizedPaint,
@@ -986,10 +989,13 @@ SystemOptionsView::SystemOptionsView(wxWindow* parent)
     InsertColumn(Column_Value, _("Value"));
 
     AppendItemWithData(wxS("exit-on-assert"), Param_ExitOnAssert);
+    AppendItemWithData(wxS("catch-unhandled-exceptions"), Param_CatchUnhandledExceptions);
 
 #ifdef __WXMSW__
     AppendItemWithData(wxS("msw.dark-mode"), Param_MSWDarkMode);
     AppendItemWithData(wxS("msw.font.no-proof-quality"), Param_MSWFontNoProofQuality);
+    AppendItemWithData(wxS("msw.native-dialogs-pmdpi"), Param_MSWNativeDialogsPMDPI);
+    AppendItemWithData(wxS("msw.no-manifest-check"), Param_MSWNoManifestCheck);
     AppendItemWithData(wxS("msw.notebook.themed-background"), Param_MSWNotebookThemedBackground);
     AppendItemWithData(wxS("msw.remap"), Param_MSWRemap);
     AppendItemWithData(wxS("msw.staticbox.optimized-paint"), Param_MSWStaticBoxOptimizedPaint);
@@ -1034,10 +1040,13 @@ void SystemOptionsView::DoUpdateValues()
 
         switch ( param )
         {
-            case Param_ExitOnAssert: value = SysOptToString(wxS("exit-on-assert")); break;
+            case Param_ExitOnAssert:             value = SysOptToString(wxS("exit-on-assert")); break;
+            case Param_CatchUnhandledExceptions: value = SysOptToString(wxS("catch-unhandled-exceptions")); break;
 
             case Param_MSWDarkMode:                 value = SysOptToString(wxS("msw.dark-mode")); break;
             case Param_MSWFontNoProofQuality:       value = SysOptToString(wxS("msw.font.no-proof-quality")); break;
+            case Param_MSWNativeDialogsPMDPI:       value = SysOptToString(wxS("msw.native-dialogs-pmdpi")); break;
+            case Param_MSWNoManifestCheck:          value = SysOptToString(wxS("msw.no-manifest-check")); break;
             case Param_MSWNotebookThemedBackground: value = SysOptToString(wxS("msw.notebook.themed-background")); break;
             case Param_MSWRemap:                    value = SysOptToString(wxS("msw.remap")); break;
             case Param_MSWStaticBoxOptimizedPaint:  value = SysOptToString(wxS("msw.staticbox.optimized-paint")); break;
