@@ -1,7 +1,7 @@
 /////////////////////////////////////////////////////////////////////////////
 // Author:      PB
 // Purpose:     Implementation of wxSystemInformationFrame and its helpers
-// Copyright:   (c) 2019-2023 PB <pbfordev@gmail.com>
+// Copyright:   (c) 2019-2025 PB <pbfordev@gmail.com>
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
@@ -2107,6 +2107,7 @@ void PreprocessorDefinesView::DoUpdateValues()
         return;
 
     long itemIndex;
+    bool hasDefine{false};
 
     APPEND_DEFINE_ITEM(__cplusplus)
 
@@ -2209,7 +2210,14 @@ void PreprocessorDefinesView::DoUpdateValues()
     APPEND_DEFINE_ITEM(wxUSE_UNICODE_UTF8)
     APPEND_DEFINE_ITEM(wxUSE_UTF8_LOCALE_ONLY)
     APPEND_DEFINE_ITEM(wxUSE_UNSAFE_WXSTRING_CONV)
-    APPEND_DEFINE_ITEM(wxNO_UNSAFE_WXSTRING_CONV)
+
+// this may or may be not defined depending on wxUSE_UNSAFE_WXSTRING_CONV definition
+// and whether the user defined it in their project
+#ifdef wxNO_UNSAFE_WXSTRING_CONV
+    hasDefine = true;
+#endif
+    APPEND_HAS_FEATURE_ITEM("wxNO_UNSAFE_WXSTRING_CONV", hasDefine)
+
     APPEND_DEFINE_ITEM(wxNO_IMPLICIT_WXSTRING_ENCODING)
     APPEND_DEFINE_ITEM(wxUSE_EXCEPTIONS)
     APPEND_DEFINE_ITEM(wxUSE_EXTENDED_RTTI)
@@ -2499,8 +2507,6 @@ void PreprocessorDefinesView::DoUpdateValues()
     APPEND_DEFINE_ITEM(wxUSE_THEME_WIN32)
 #endif // #ifdef __WXUNIVERSAL__
 
-
-    bool hasDefine;
 
 #ifdef wxHAS_3STATE_CHECKBOX
     hasDefine = true;
