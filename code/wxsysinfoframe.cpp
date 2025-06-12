@@ -979,7 +979,7 @@ const char* SystemOptionsView::s_optionNames[] =
     "gtk.desktop",
     "gtk.tlw.can-set-transparent",
     "gtk.window.force-background-colour",
-elif defefined(__WXMAC__)
+#elif defined(__WXMAC__)
     "mac.listctrl.always_use_generic",
     "mac.textcontrol-use-spell-checker",
     "window-default-variant",
