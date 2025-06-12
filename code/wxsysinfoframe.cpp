@@ -957,36 +957,35 @@ private:
         Column_Value,
     };
 
-    enum
-    {
-        Param_ExitOnAssert = 0,
-        Param_CatchUnhandledExceptions,
+    static const char* s_optionNames[];
+};
 
-        // MSW options
-
-        Param_MSWDarkMode,
-        Param_MSWFontNoProofQuality,
-        Param_MSWNativeDialogsPMDPI,
-        Param_MSWNoManifestCheck,
-        Param_MSWNotebookThemedBackground,
-        Param_MSWRemap,
-        Param_MSWStaticBoxOptimizedPaint,
-        Param_MSWWindowNoClipChildren,
-        Param_MSWWindowNoComposited,
-        Param_NoMaskBit,
-
-        // GTK options
-        Param_GTKDesktop,
-        Param_GTKTLWCanSetTransparent,
-        Param_GTKWindowForceBackgroundColour,
-
-        // MAC options
-        Param_MacListCtrlAwaysUseGeneric,
-        Param_MacTextControlUseSpellChecker,
-        Param_MacWindowDefaultVariant,
-        Param_MacWindowPlainTransition,
-        Param_OSXFileDialogAlwaysShowTypes,
-    };
+const char* SystemOptionsView::s_optionNames[] =
+{
+    "exit-on-assert",
+    "catch-unhandled-exceptions",
+#if defined(__WXMSW__)
+    "msw.dark-mode",
+    "msw.font.no-proof-quality",
+    "msw.native-dialogs-pmdpi",
+    "msw.no-manifest-check",
+    "msw.notebook.themed-background",
+    "msw.remap",
+    "msw.staticbox.optimized-paint",
+    "msw.window.no-clip-children",
+    "msw.window.no-composited",
+    "no-maskblt",
+#elif defined(__WXGTK__)
+    "gtk.desktop",
+    "gtk.tlw.can-set-transparent",
+    "gtk.window.force-background-colour",
+elif defefined(__WXMAC__)
+    "mac.listctrl.always_use_generic",
+    "mac.textcontrol-use-spell-checker",
+    "window-default-variant",
+    "mac.window-plain-transition",
+    "osx.openfiledialog.always-show-types",
+#endif
 };
 
 SystemOptionsView::SystemOptionsView(wxWindow* parent)
@@ -994,36 +993,6 @@ SystemOptionsView::SystemOptionsView(wxWindow* parent)
 {
     InsertColumn(Column_Name, _("Name"));
     InsertColumn(Column_Value, _("Value"));
-
-    AppendItemWithData(wxS("exit-on-assert"), Param_ExitOnAssert);
-    AppendItemWithData(wxS("catch-unhandled-exceptions"), Param_CatchUnhandledExceptions);
-
-#ifdef __WXMSW__
-    AppendItemWithData(wxS("msw.dark-mode"), Param_MSWDarkMode);
-    AppendItemWithData(wxS("msw.font.no-proof-quality"), Param_MSWFontNoProofQuality);
-    AppendItemWithData(wxS("msw.native-dialogs-pmdpi"), Param_MSWNativeDialogsPMDPI);
-    AppendItemWithData(wxS("msw.no-manifest-check"), Param_MSWNoManifestCheck);
-    AppendItemWithData(wxS("msw.notebook.themed-background"), Param_MSWNotebookThemedBackground);
-    AppendItemWithData(wxS("msw.remap"), Param_MSWRemap);
-    AppendItemWithData(wxS("msw.staticbox.optimized-paint"), Param_MSWStaticBoxOptimizedPaint);
-    AppendItemWithData(wxS("msw.window.no-clip-children"), Param_MSWWindowNoClipChildren);
-    AppendItemWithData(wxS("msw.window.no-composited"), Param_MSWWindowNoComposited);
-    AppendItemWithData(wxS("no-maskblt"), Param_NoMaskBit);
-#endif // #ifdef __WXMSW__
-
-#ifdef __WXGTK__
-    AppendItemWithData(wxS("gtk.desktop"), Param_GTKDesktop);
-    AppendItemWithData(wxS("gtk.tlw.can-set-transparent"), Param_GTKTLWCanSetTransparent);
-    AppendItemWithData(wxS("gtk.window.force-background-colour"), Param_GTKWindowForceBackgroundColour);
-#endif // #ifdef __WXGTK__
-
-#ifdef __WXMAC__
-    AppendItemWithData(wxS("mac.listctrl.always_use_generic"), Param_MacListCtrlAwaysUseGeneric);
-    AppendItemWithData(wxS("mac.textcontrol-use-spell-checker"), Param_MacTextControlUseSpellChecker);
-    AppendItemWithData(wxS("window-default-variant"), Param_MacWindowDefaultVariant);
-    AppendItemWithData(wxS("mac.window-plain-transition"), Param_MacWindowPlainTransition);
-    AppendItemWithData(wxS("osx.openfiledialog.always-show-types"), Param_OSXFileDialogAlwaysShowTypes);
-#endif // #ifdef __WXMAC__
 
     UpdateValues();
 }
@@ -1038,41 +1007,14 @@ wxString SysOptToString(const wxString& name)
 
 void SystemOptionsView::DoUpdateValues()
 {
-    const long itemCount = GetItemCount();
+    DeleteAllItems();
 
-    for ( int i = 0; i < itemCount; ++i )
+    for ( const auto& name : s_optionNames )
     {
-        const long param = GetItemData(i);
-        wxString value;
+        const long itemIndex = InsertItem(GetItemCount(), name);
 
-        switch ( param )
-        {
-            case Param_ExitOnAssert:             value = SysOptToString(wxS("exit-on-assert")); break;
-            case Param_CatchUnhandledExceptions: value = SysOptToString(wxS("catch-unhandled-exceptions")); break;
-
-            case Param_MSWDarkMode:                 value = SysOptToString(wxS("msw.dark-mode")); break;
-            case Param_MSWFontNoProofQuality:       value = SysOptToString(wxS("msw.font.no-proof-quality")); break;
-            case Param_MSWNativeDialogsPMDPI:       value = SysOptToString(wxS("msw.native-dialogs-pmdpi")); break;
-            case Param_MSWNoManifestCheck:          value = SysOptToString(wxS("msw.no-manifest-check")); break;
-            case Param_MSWNotebookThemedBackground: value = SysOptToString(wxS("msw.notebook.themed-background")); break;
-            case Param_MSWRemap:                    value = SysOptToString(wxS("msw.remap")); break;
-            case Param_MSWStaticBoxOptimizedPaint:  value = SysOptToString(wxS("msw.staticbox.optimized-paint")); break;
-            case Param_MSWWindowNoClipChildren:     value = SysOptToString(wxS("msw.window.no-clip-children")); break;
-            case Param_MSWWindowNoComposited:       value = SysOptToString(wxS("msw.window.no-composited")); break;
-            case Param_NoMaskBit:                   value = SysOptToString(wxS("no-maskblt")); break;
-
-            case Param_GTKDesktop:                     value = SysOptToString(wxS("gtk.desktop")); break;
-            case Param_GTKTLWCanSetTransparent:        value = SysOptToString(wxS("gtk.tlw.can-set-transparent")); break;
-            case Param_GTKWindowForceBackgroundColour: value = SysOptToString(wxS("gtk.window.force-background-colour")); break;
-
-            case Param_MacListCtrlAwaysUseGeneric:    value = SysOptToString(wxS("mac.listctrl.always_use_generic")); break;
-            case Param_MacTextControlUseSpellChecker: value = SysOptToString(wxS("mac.textcontrol-use-spell-checker")); break;
-            case Param_MacWindowDefaultVariant:       value = SysOptToString(wxS("window-default-variant")); break;
-            case Param_MacWindowPlainTransition:      value = SysOptToString(wxS("mac.window-plain-transition")); break;
-            case Param_OSXFileDialogAlwaysShowTypes:  value = SysOptToString(wxS("osx.openfiledialog.always-show-types")); break;
-        }
-
-        SetItem(i, Column_Value, value);
+         if ( itemIndex != -1 )
+            SetItem(itemIndex, Column_Value, SysOptToString(name));
     }
 }
 
