@@ -1,7 +1,7 @@
 /////////////////////////////////////////////////////////////////////////////
 // Author:      PB
 // Purpose:     Implementation of wxSystemInformationFrame and its helpers
-// Copyright:   (c) 2019-2025 PB <pbfordev@gmail.com>
+// Copyright:   (c) 2019-2026 PB <pbfordev@gmail.com>
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
@@ -272,7 +272,6 @@ public:
 
     bool CanShowDetailedInformation() const override { return GetFirstSelected() != -1; }
 
-    void SetColourBitmapOutlineColour(const wxColour& outlineColour);
     wxColour GetColourBitmapOutlineColour() const { return m_outlineColour; }
 
     static wxColour GetDefaultColourBitmapOutlineColour();
@@ -360,12 +359,6 @@ SystemColourView::SystemColourView(wxWindow* parent)
              SetItem(itemIndex, Column_Description, colourDescription);
     }
 
-    UpdateValues();
-}
-
-void SystemColourView::SetColourBitmapOutlineColour(const wxColour& outlineColour)
-{
-    m_outlineColour = outlineColour;
     UpdateValues();
 }
 
@@ -1813,7 +1806,7 @@ wxString GetThemeName()
     {
         if ( SUCCEEDED(::GetThemeDocumentationProperty(fileName, SZ_THDOCPROP_DISPLAYNAME, displayName, buffSize)) )
         {
-            HIGHCONTRAST hc{0};
+            HIGHCONTRAST hc{};
 
             name.Printf("%s / %s", displayName, colorName);
 

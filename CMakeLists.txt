@@ -5,6 +5,11 @@ if(NOT(WIN32 OR UNIX))
   message(FATAL_ERROR "${PROJECT_NAME} does not support this platform.")
 endif()
 
+if(WIN32)
+  # for the resource file with the application manifest
+  enable_language(RC)
+endif()
+
 find_package(wxWidgets 3.2 COMPONENTS core base REQUIRED)
 
 if(UNIX AND NOT APPLE)
@@ -17,6 +22,9 @@ add_executable(${PROJECT_NAME}
   code/wxsysinfoframe.cpp
   code/wxsysinfoframe.h
 )
+if(WIN32)
+  target_sources(${PROJECT_NAME} PRIVATE test/test.rc)
+endif()
 set_target_properties(${PROJECT_NAME} PROPERTIES
   CXX_STANDARD 11
   CXX_STANDARD_REQUIRED YES
@@ -39,6 +47,8 @@ if(WIN32)
     target_compile_definitions(${PROJECT_NAME} PRIVATE
       _CRT_SECURE_NO_DEPRECATE _CRT_NON_CONFORMING_SWPRINTFS _SCL_SECURE_NO_WARNINGS)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4 /MP)
+    # the application manifest is embedded from test.rc, so the linker must not add its own
+    target_link_options(${PROJECT_NAME} PRIVATE /MANIFEST:NO)
   else() # MinGW GCC or clang
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wno-deprecated-declarations)
     # wxWidgets 3.3 needs these when linking statically

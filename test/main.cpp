@@ -2,7 +2,7 @@
 // Author:      PB
 // Purpose:     Minimal application using wxSystemInformationFrame
 //              (used to check that wxsysinfoframe builds)
-// Copyright:   (c) 2019-2025 PB <pbfordev@gmail.com>
+// Copyright:   (c) 2019-2026 PB <pbfordev@gmail.com>
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
