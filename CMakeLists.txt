@@ -32,6 +32,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${wxWidgets_LIBRARIES})
 if(WIN32)
   set_target_properties(${PROJECT_NAME} PROPERTIES WIN32_EXECUTABLE YES)
 
+  # wxsysinfoframe.cpp uses the theme API directly and wxWidgets DLLs do not bring uxtheme in
+  target_link_libraries(${PROJECT_NAME} PRIVATE uxtheme)
+
   if(MSVC)
     target_compile_definitions(${PROJECT_NAME} PRIVATE
       _CRT_SECURE_NO_DEPRECATE _CRT_NON_CONFORMING_SWPRINTFS _SCL_SECURE_NO_WARNINGS)
