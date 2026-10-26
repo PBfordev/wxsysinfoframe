@@ -1475,6 +1475,7 @@ private:
         Param_AppHasStderr,
         Param_IsProcess64bit,
         Param_wxRCEmbedded,
+        Param_IsRemoteSession,
         Param_UnixDesktopEnvironment,
         Param_ThemeName,
         Param_SystemAppearanceName,
@@ -1862,6 +1863,7 @@ MiscellaneousView::MiscellaneousView(wxWindow* parent)
     AppendItemWithData(_("64-bit Process"), Param_IsProcess64bit);
 #ifdef __WXMSW__
     AppendItemWithData(_("Is <wx/wx.rc> Embedded"), Param_wxRCEmbedded);
+    AppendItemWithData(_("Is Remote Session"), Param_IsRemoteSession);
 #endif // #ifdef __WXMSW__
 #ifdef __UNIX__
     AppendItemWithData(_("Unix Desktop Environment"), Param_UnixDesktopEnvironment);
@@ -1965,6 +1967,7 @@ void MiscellaneousView::DoUpdateValues()
             case Param_IsProcess64bit:            value = sizeof(void*) == 8 ? _("Yes") : _("No"); break;
 #ifdef __WXMSW__
             case Param_wxRCEmbedded:              value = wxRCEmbedded ? _("Yes") : _("No"); break;
+            case Param_IsRemoteSession:           value = ::GetSystemMetrics(SM_REMOTESESSION) != 0 ? _("Yes") : _("No"); break;
 #endif // #ifdef __WXMSW__
 #ifdef __UNIX__
             case Param_UnixDesktopEnvironment:    value = appTraits->GetDesktopEnvironment(); break;
