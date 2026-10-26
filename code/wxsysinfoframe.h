@@ -1,7 +1,7 @@
 /////////////////////////////////////////////////////////////////////////////
 // Author:      PB
 // Purpose:     wxSystemInformationFrame definition
-// Copyright:   (c) 2019-2025 PB <pbfordev@gmail.com>
+// Copyright:   (c) 2019-2026 PB <pbfordev@gmail.com>
 // Licence:     wxWindows licence
 /////////////////////////////////////////////////////////////////////////////
 
@@ -42,7 +42,7 @@ public:
         ViewPreprocessorDefines  = 1 << 9,
     };
 
-    static const long DefaultCreateFlags = AutoRefresh
+    static constexpr long DefaultCreateFlags = AutoRefresh
                                            | ViewSystemColours | ViewSystemFonts | ViewSystemMetrics
                                            | ViewDisplays | ViewStandardPaths | ViewSystemOptions
                                            | ViewEnvironmentVariables | ViewMiscellaneous

@@ -1,0 +1,10 @@
+#include <windows.h>
+
+// The application manifest (common controls v6, Per Monitor v2 DPI awareness)
+// is embedded from test.manifest for all compilers, the manifest from wx.rc
+// is not used. With MSVC, the linker must be told not to create its own manifest.
+#define wxUSE_NO_MANIFEST 1
+
+#include "wx/msw/wx.rc"
+
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "test.manifest"

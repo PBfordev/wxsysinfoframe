@@ -1,0 +1,72 @@
+name: Build with MSYS2
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '.github/workflows/build-msvs.yml'
+      - '.github/workflows/build-linux.yml'
+      - 'ReadMe.md'
+      - 'screenshots/**'
+  pull_request:
+    branches:
+      - master
+    paths-ignore:
+      - '.github/workflows/build-msvs.yml'
+      - '.github/workflows/build-linux.yml'
+      - 'ReadMe.md'
+      - 'screenshots/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# cancel the runs for the previous pushes to a pull request,
+# runs for pushes to master are grouped by commit so none is skipped
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # the latest wxWidgets version available as MSYS2 package
+  wxMSW_VER: 3.3
+  BUILD_DIR_PATH: build_cmake
+
+jobs:
+  build:
+    runs-on: windows-2025
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { sys: ucrt64  }
+          - { sys: clang64 }
+    name: ${{ matrix.sys }}
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v7
+
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{matrix.sys}}
+        update: true
+        pacboy: >-
+          toolchain:p
+          cmake:p
+          ninja:p
+          wxwidgets${{ env.wxMSW_VER }}-msw:p
+
+    # wxWidgets is found with wx-config here
+    - name: Configure
+      run: |
+        cmake -G Ninja -B $BUILD_DIR_PATH -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      run: |
+        cmake --build $BUILD_DIR_PATH

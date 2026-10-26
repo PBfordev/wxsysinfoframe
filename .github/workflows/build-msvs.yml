@@ -1,0 +1,78 @@
+name: Build with MSVS 2022
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '.github/workflows/build-msys2.yml'
+      - '.github/workflows/build-linux.yml'
+      - 'ReadMe.md'
+      - 'screenshots/**'
+  pull_request:
+    branches:
+      - master
+    paths-ignore:
+      - '.github/workflows/build-msys2.yml'
+      - '.github/workflows/build-linux.yml'
+      - 'ReadMe.md'
+      - 'screenshots/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# cancel the runs for the previous pushes to a pull request,
+# runs for pushes to master are grouped by commit so none is skipped
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  WXWIN: c:\wx
+  BUILD_DIR_PATH: build_cmake
+
+# Each run step starts with
+#   $PSNativeCommandUseErrorActionPreference = $true
+# so that a failing native command (e.g. cmake, gh, or 7z) fails the step,
+# GitHub otherwise checks only the exit code of the last command.
+
+jobs:
+  build:
+    runs-on: windows-2022
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # The latest release of wxWidgets is used, the official prebuilt binaries
+      # are downloaded instead of building wxWidgets.
+      - name: Install wxWidgets
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $tag = gh api repos/wxWidgets/wxWidgets/releases/latest --jq .tag_name
+          $ver = $tag.TrimStart('v')
+          "Latest wxWidgets release: $ver"
+          mkdir ${env:WXWIN} | Out-Null
+          cd ${env:WXWIN}
+          gh release download $tag --repo wxWidgets/wxWidgets `
+            --pattern "wxWidgets-$ver-headers.7z" `
+            --pattern "wxMSW-${ver}_vc14x_x64_Dev.7z" `
+            --pattern "wxMSW-${ver}_vc14x_x64_ReleaseDLL.7z"
+          foreach ($archive in Get-ChildItem *.7z) {
+            7z x -y $archive.Name
+          }
+
+      - name: Configure
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          cmake -G "Visual Studio 17 2022" -A x64 -T v143 -B ${env:BUILD_DIR_PATH} `
+            "-DwxWidgets_ROOT_DIR=${env:WXWIN}"
+
+      # The prebuilt wxWidgets DLLs are release only
+      - name: Build
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          cmake --build ${env:BUILD_DIR_PATH} --config Release
