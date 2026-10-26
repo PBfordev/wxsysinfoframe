@@ -15,6 +15,8 @@
     #error wxSystemInformationFrame requires wxWidgets version 3 or higher
 #endif
 
+// Several of the headers below are included only so that the wxHAS_* and
+// wxUSE_* macros reported by the Preprocessor Defines page are visible.
 #include <wx/animate.h>
 #include <wx/apptrait.h>
 #include <wx/colordlg.h>
@@ -34,7 +36,9 @@
 #include <wx/power.h>
 #include <wx/settings.h>
 #include <wx/stdpaths.h>
-#include <wx/sysopt.h>
+#if wxUSE_SYSTEM_OPTIONS
+    #include <wx/sysopt.h>
+#endif
 #include <wx/textfile.h>
 #include <wx/tglbtn.h>
 #include <wx/thread.h>
@@ -55,15 +59,22 @@
     #include <gtk/gtk.h>
 #endif
 
-#if (__cplusplus >= 202002L)
-    #include <version.h>
+// pull in the standard library version macros (_LIBCPP_VERSION etc.)
+#if defined(__has_include)
+    #if __has_include(<version>)
+        #include <version>
+    #else
+        #include <ciso646>
+    #endif
 #else
     #include <ciso646>
 #endif
 
 
 #include <map>
+#include <memory>
 #include <set>
+#include <vector>
 
 #include "wxsysinfoframe.h"
 
@@ -71,13 +82,13 @@ namespace { // anonymous namespace for helper classes and functions
 
 wxString wxRectTowxString(const wxRect& r)
 {
-    return wxString::Format(_("%d, %d; %d, %d"),
+    return wxString::Format("%d, %d; %d, %d",
         r.GetLeft(), r.GetTop(), r.GetRight(), r.GetBottom());
 }
 
 wxString wxSizeTowxString(const wxSize& s)
 {
-    return wxString::Format(_("%d x %d"), s.x, s.y);
+    return wxString::Format("%d x %d", s.x, s.y);
 }
 
 
@@ -104,7 +115,7 @@ protected:
     long AppendItemWithData(const wxString& label, long data);
 
     virtual void DoUpdateValues() = 0;
-    virtual void DoShowDetailedInformation(long WXUNUSED(listItemIndex)) const {};
+    virtual void DoShowDetailedInformation(long WXUNUSED(listItemIndex)) const {}
 
     wxArrayString GetNameAndValueValues(int nameColumnIndex, int valueColumnIndex, const wxString& separator) const;
 
@@ -125,19 +136,32 @@ void SysInfoListView::UpdateValues()
 {
     wxWindowUpdateLocker updateLocker(this);
 
+    // some views delete and recreate all items, remember the selection
+    // so that it is not lost on each refresh
+    const long previousSelection = GetFirstSelected();
+
     DoUpdateValues();
     AutoSizeColumns();
 
-    if ( GetFirstSelected() == -1 && GetItemCount() > 0 )
+    const long itemCount = GetItemCount();
+
+    if ( itemCount > 0 && GetFirstSelected() == -1 )
     {
-        Select(0);
-        Focus(0);
+        const long toSelect = (previousSelection != -1 && previousSelection < itemCount)
+                              ? previousSelection : 0;
+
+        Select(toSelect);
+        Focus(toSelect);
+        EnsureVisible(toSelect);
     }
 }
 
 void SysInfoListView::ShowDetailedInformation() const
 {
-    DoShowDetailedInformation(GetFirstSelected());
+    const long itemIndex = GetFirstSelected();
+
+    if ( itemIndex != -1 )
+        DoShowDetailedInformation(itemIndex);
 }
 
 long SysInfoListView::AppendItemWithData(const wxString& label, long data)
@@ -245,7 +269,6 @@ class SystemColourView : public SystemSettingView
 {
 public:
     SystemColourView(wxWindow* parent);
-    ~SystemColourView();
 
     bool CanShowDetailedInformation() const override { return GetFirstSelected() != -1; }
 
@@ -257,14 +280,13 @@ protected:
     void DoUpdateValues() override;
     void DoShowDetailedInformation(long listItemIndex) const override;
 private:
-    wxImageList* m_imageList{nullptr};
     wxColour m_outlineColour;
     std::set<wxSystemColour> m_deprecatedColourList;
 
     wxBitmap CreateColourBitmap(const wxColour& colour, const wxSize& size);
 
     void CreateDeprecatedColourList();
-    bool IsDeprecatedSystemColour(wxSystemColour index);
+    bool IsDeprecatedSystemColour(wxSystemColour index) const;
 };
 
 struct ColourInfo
@@ -295,7 +317,7 @@ ColourInfo const s_colourInfoArray[] =
     wxSYS_COLOUR_BTNSHADOW, "wxSYS_COLOUR_BTNSHADOW", "Edge shading colour on push buttons.",
     wxSYS_COLOUR_GRAYTEXT, "wxSYS_COLOUR_GRAYTEXT", "Colour of greyed (disabled) text.",
     wxSYS_COLOUR_BTNTEXT, "wxSYS_COLOUR_BTNTEXT", "Colour of the text on push buttons.",
-    wxSYS_COLOUR_INACTIVECAPTIONTEXT, "wxSYS_COLOUR_INACTIVECAPTIONTEXT", "Colour of the text in active captions.",
+    wxSYS_COLOUR_INACTIVECAPTIONTEXT, "wxSYS_COLOUR_INACTIVECAPTIONTEXT", "Colour of the text in inactive captions.",
     wxSYS_COLOUR_BTNHIGHLIGHT, "wxSYS_COLOUR_BTNHIGHLIGHT", "Highlight colour for buttons.",
     wxSYS_COLOUR_3DDKSHADOW, "wxSYS_COLOUR_3DDKSHADOW", "Dark shadow colour for three-dimensional display elements.",
     wxSYS_COLOUR_3DLIGHT, "wxSYS_COLOUR_3DLIGHT", "Light colour for three-dimensional display elements.",
@@ -323,31 +345,22 @@ SystemColourView::SystemColourView(wxWindow* parent)
 {
     CreateDeprecatedColourList();
 
-    SetColourBitmapOutlineColour(GetDefaultColourBitmapOutlineColour());
+    m_outlineColour = GetDefaultColourBitmapOutlineColour();
 
     for ( size_t i = 0; i < WXSIZEOF(s_colourInfoArray); ++i )
     {
-        if ( IsDeprecatedSystemColour(s_colourInfoArray[i].index) )
-            continue;
+         wxString colourDescription = s_colourInfoArray[i].description;
 
-         const wxString colourName = s_colourInfoArray[i].name;
-         const wxString colourDescription = s_colourInfoArray[i].description;
-         const long itemIndex = InsertItem(i, colourName, -1);
+         if ( IsDeprecatedSystemColour(s_colourInfoArray[i].index) )
+             colourDescription += _(" (Deprecated on Windows 10 and newer.)");
+
+         const long itemIndex = AppendItemWithData(s_colourInfoArray[i].name, (long)i);
 
          if ( itemIndex != -1 )
-         {
              SetItem(itemIndex, Column_Description, colourDescription);
-             SetItemData(itemIndex, (long)i);
-         }
     }
 
     UpdateValues();
-}
-
-SystemColourView::~SystemColourView()
-{
-    if ( m_imageList )
-        delete m_imageList;
 }
 
 void SystemColourView::SetColourBitmapOutlineColour(const wxColour& outlineColour)
@@ -367,14 +380,6 @@ void SystemColourView::DoUpdateValues()
 {
     wxSize size;
 
-    if ( m_imageList )
-    {
-        SetImageList(nullptr, wxIMAGE_LIST_SMALL);
-        delete m_imageList;
-    }
-
-    m_imageList = new wxImageList();
-
     size.SetWidth(wxSystemSettings::GetMetric(wxSYS_SMALLICON_X, this));
     size.SetHeight(wxSystemSettings::GetMetric(wxSYS_SMALLICON_Y, this));
 
@@ -388,15 +393,18 @@ void SystemColourView::DoUpdateValues()
 #endif
     }
 
-    m_imageList->Create(size.GetWidth(), size.GetHeight(), false);
-    SetImageList(m_imageList, wxIMAGE_LIST_SMALL);
+    // the list control takes the ownership of the image list
+    // and deletes the previous one
+    wxImageList* const imageList = new wxImageList(size.GetWidth(), size.GetHeight(), false);
+
+    AssignImageList(imageList, wxIMAGE_LIST_SMALL);
 
     const int itemCount = GetItemCount();
 
     for ( int i = 0; i < itemCount; ++i )
     {
          const wxColour colour = wxSystemSettings::GetColour(s_colourInfoArray[GetItemData(i)].index);
-         const int imageIndex = m_imageList->Add(CreateColourBitmap(colour.IsOk() ? colour : GetColourBitmapOutlineColour(), size));
+         const int imageIndex = imageList->Add(CreateColourBitmap(colour.IsOk() ? colour : GetColourBitmapOutlineColour(), size));
          wxString colourValue = _("<Invalid>");
 
          if ( colour.IsOk() )
@@ -427,7 +435,7 @@ void SystemColourView::DoShowDetailedInformation(long listItemIndex) const
 
     colourData.SetCustomColour(0, colour);
 
-    wxGetColourFromUser(GetParent(), colour, wxString::Format(_("Viewing %s"), valueName), &colourData);
+    wxGetColourFromUser(wxGetTopLevelParent(const_cast<SystemColourView*>(this)), colour, wxString::Format(_("Viewing %s"), valueName), &colourData);
 }
 
 wxBitmap SystemColourView::CreateColourBitmap(const wxColour& colour, const wxSize& size)
@@ -457,8 +465,6 @@ void SystemColourView::CreateDeprecatedColourList()
 
     if ( verMajor < 10 )
         return;
-
-    wxCHECK_RET(m_deprecatedColourList.empty(), "list already created");
 
     m_deprecatedColourList.insert(wxSYS_COLOUR_3DDKSHADOW);
     m_deprecatedColourList.insert(wxSYS_COLOUR_3DHIGHLIGHT);
@@ -492,7 +498,7 @@ void SystemColourView::CreateDeprecatedColourList()
 #endif
 }
 
-bool SystemColourView::IsDeprecatedSystemColour(wxSystemColour index)
+bool SystemColourView::IsDeprecatedSystemColour(wxSystemColour index) const
 {
 #ifndef __WXMSW__
     wxUnusedVar(index);
@@ -585,7 +591,7 @@ void SystemFontView::DoShowDetailedInformation(long listItemIndex) const
         return;
     }
 
-    wxGetFontFromUser(GetParent(), font, wxString::Format(_("Viewing %s"), valueName));
+    wxGetFontFromUser(wxGetTopLevelParent(const_cast<SystemFontView*>(this)), font, wxString::Format(_("Viewing %s"), valueName));
 }
 
 
@@ -703,59 +709,153 @@ void SystemMetricView::DoUpdateValues()
 // The code for obtaining friendly monitor names is adapted from
 // https://gist.github.com/pavel-a/dd3a4320176e69a0f6c4b4871e69e56b
 
-BOOL CALLBACK MonitorInfoEnumProc(HMONITOR hMonitor, HDC, LPRECT, LPARAM dwData)
+// Returns the monitor name stored in the EDID, which can be longer than what
+// DisplayConfigGetDeviceInfo() reports: a single EDID monitor name descriptor holds
+// only 13 characters, so some monitors store longer names in several descriptors
+// that need to be concatenated.
+wxString GetMonitorNameFromEDID(const std::vector<BYTE>& edid)
 {
-    WinStruct<MONITORINFOEXW> info;
-    UINT32 pathCount, modeCount;
+    wxString name;
+
+    const auto addDescriptor = [&name](const BYTE* d)
+    {
+        const BYTE monitorNameTag = 0xFC;
+
+        // display descriptors (as opposed to detailed timing descriptors)
+        // start with 3 zero bytes followed by the tag, the text is at offset 5
+        if ( d[0] != 0 || d[1] != 0 || d[2] != 0 || d[3] != monitorNameTag )
+            return;
+
+        for ( int i = 5; i < 18 && d[i] != 0x0A && d[i] != 0; ++i )
+            name += wxUniChar(d[i]);
+    };
+
+    if ( edid.size() < 128 )
+        return name;
+
+    // the base block contains four 18-byte descriptors
+    for ( size_t offset = 54; offset <= 108; offset += 18 )
+        addDescriptor(&edid[offset]);
+
+    // CTA-861 extension blocks can contain more descriptors after the data blocks
+    const size_t extensionCount = edid[126];
+
+    for ( size_t i = 1; i <= extensionCount && edid.size() >= (i + 1) * 128; ++i )
+    {
+        const BYTE* const block = &edid[i * 128];
+
+        if ( block[0] != 0x02 || block[2] < 4 )
+            continue;
+
+        for ( size_t offset = block[2]; offset + 18 <= 127; offset += 18 )
+            addDescriptor(block + offset);
+    }
+
+    return name.Trim();
+}
+
+// Reads the EDID of the monitor identified by the monitor device path
+// returned by DisplayConfigGetDeviceInfo(), e.g.
+// \\?\DISPLAY#GBT2701#5&9d4e723&0&UID37122#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
+bool ReadMonitorEDID(const wxString& monitorDevicePath, std::vector<BYTE>& edid)
+{
+    const wxArrayString parts = wxSplit(monitorDevicePath, '#', '\0');
+
+    if ( parts.size() < 3 )
+        return false;
+
+    const wxString key = wxString::Format(
+        "SYSTEM\\CurrentControlSet\\Enum\\DISPLAY\\%s\\%s\\Device Parameters", parts[1], parts[2]);
+
+    DWORD size = 0;
+
+    if ( ::RegGetValueW(HKEY_LOCAL_MACHINE, key.wc_str(), L"EDID", RRF_RT_REG_BINARY,
+                        nullptr, nullptr, &size) != ERROR_SUCCESS || !size )
+        return false;
+
+    edid.resize(size);
+
+    if ( ::RegGetValueW(HKEY_LOCAL_MACHINE, key.wc_str(), L"EDID", RRF_RT_REG_BINARY,
+                        nullptr, edid.data(), &size) != ERROR_SUCCESS )
+        return false;
+
+    edid.resize(size);
+    return true;
+}
+
+// Returns friendly monitor names keyed by the GDI device name
+// (as returned by wxDisplay::GetName()).
+std::map<wxString, wxString> GetMonitorFriendlyNames()
+{
+    std::map<wxString, wxString> names;
     std::vector<DISPLAYCONFIG_PATH_INFO> paths;
     std::vector<DISPLAYCONFIG_MODE_INFO> modes;
+    LONG result;
 
-    if ( !::GetMonitorInfoW(hMonitor, &info) )
-        return FALSE;
+    // the display configuration may change between the two calls,
+    // in which case QueryDisplayConfig() asks to be called again
+    do
+    {
+        UINT32 pathCount = 0, modeCount = 0;
 
-    if ( ::GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount) != ERROR_SUCCESS )
-        return FALSE;
+        if ( ::GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount) != ERROR_SUCCESS )
+            return names;
 
-    if ( !pathCount || !modeCount )
-        return FALSE;
+        paths.resize(pathCount);
+        modes.resize(modeCount);
 
-    paths.resize(pathCount);
-    modes.resize(modeCount);
+        result = ::QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS,
+                    &pathCount, paths.data(), &modeCount, modes.data(), nullptr);
 
-    if ( ::QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS,
-            &pathCount, paths.data(), &modeCount, modes.data(), nullptr) != ERROR_SUCCESS )
-        return FALSE;
+        if ( result == ERROR_SUCCESS )
+            paths.resize(pathCount);
+    }
+    while ( result == ERROR_INSUFFICIENT_BUFFER );
+
+    if ( result != ERROR_SUCCESS )
+        return names;
 
     for ( const auto& p : paths )
     {
-        DISPLAYCONFIG_SOURCE_DEVICE_NAME sourceName;
+        DISPLAYCONFIG_SOURCE_DEVICE_NAME sourceName{};
 
         sourceName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
         sourceName.header.size = sizeof(sourceName);
         sourceName.header.adapterId = p.sourceInfo.adapterId;
         sourceName.header.id = p.sourceInfo.id;
         if ( ::DisplayConfigGetDeviceInfo(&sourceName.header) != ERROR_SUCCESS )
-            return FALSE;
-
-        if ( ::wcscmp(info.szDevice, sourceName.viewGdiDeviceName) != 0 )
             continue;
 
-        DISPLAYCONFIG_TARGET_DEVICE_NAME name;
+        DISPLAYCONFIG_TARGET_DEVICE_NAME targetName{};
 
-        name.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
-        name.header.size = sizeof(name);
-        name.header.adapterId = p.sourceInfo.adapterId;
-        name.header.id = p.targetInfo.id;
-        if ( ::DisplayConfigGetDeviceInfo(&name.header) != ERROR_SUCCESS )
-            return FALSE;
+        targetName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+        targetName.header.size = sizeof(targetName);
+        targetName.header.adapterId = p.targetInfo.adapterId;
+        targetName.header.id = p.targetInfo.id;
+        if ( ::DisplayConfigGetDeviceInfo(&targetName.header) != ERROR_SUCCESS )
+            continue;
 
-        wxArrayString* friendlyNames = reinterpret_cast<wxArrayString*>(dwData);
+        wxString friendlyName(targetName.monitorFriendlyDeviceName);
 
-        friendlyNames->push_back(wxString(name.monitorFriendlyDeviceName));
-        return TRUE;
+        // prefer the full name from EDID if the reported name is just its truncated beginning
+        std::vector<BYTE> edid;
+
+        if ( targetName.flags.friendlyNameFromEdid
+             && ReadMonitorEDID(targetName.monitorDevicePath, edid) )
+        {
+            const wxString edidName = GetMonitorNameFromEDID(edid);
+
+            if ( edidName.length() > friendlyName.length()
+                 && edidName.Left(friendlyName.length()).CmpNoCase(friendlyName) == 0 )
+            {
+                friendlyName = edidName;
+            }
+        }
+
+        names[wxString(sourceName.viewGdiDeviceName)] = friendlyName;
     }
 
-    return FALSE;
+    return names;
 }
 
 #endif // #ifdef __WXMSW__
@@ -858,13 +958,10 @@ void DisplaysView::DoUpdateValues()
     const int itemCount = GetItemCount();
 
 #ifdef __WXMSW__
-    wxArrayString friendlyNames;
-
-    if ( !::EnumDisplayMonitors(nullptr, nullptr, MonitorInfoEnumProc, (LPARAM)&friendlyNames) )
-        friendlyNames.clear();
+    const std::map<wxString, wxString> friendlyNames = GetMonitorFriendlyNames();
 #endif // #ifdef __WXMSW__
 
-    for ( size_t displayIndex = 0; displayIndex < displayCount; ++displayIndex )
+    for ( unsigned int displayIndex = 0; displayIndex < displayCount; ++displayIndex )
     {
         const wxDisplay display(displayIndex);
         const wxVideoMode videoMode = display.GetCurrentMode();
@@ -872,11 +969,11 @@ void DisplaysView::DoUpdateValues()
         const wxRect clientAreaCoords = display.GetClientArea();
         const int columnIndex = displayIndex + 1;
 
-        AppendColumn(wxString::Format("wxDisplay(%zu)", displayIndex));
+        AppendColumn(wxString::Format("wxDisplay(%u)", displayIndex));
 
         for ( int itemIndex = 0; itemIndex < itemCount; ++itemIndex )
         {
-            const int param = GetItemData(itemIndex);
+            const long param = GetItemData(itemIndex);
             wxString value;
 
             switch ( param )
@@ -886,10 +983,14 @@ void DisplaysView::DoUpdateValues()
                     break;
 #ifdef __WXMSW__
                 case Param_FriendlyName:
-                    if ( friendlyNames.size() == displayCount )
-                        value = friendlyNames[displayIndex];
-                    else
-                        value = _("N/A");
+                    {
+                        const auto it = friendlyNames.find(display.GetName());
+
+                        if ( it != friendlyNames.end() && !it->second.empty() )
+                            value = it->second;
+                        else
+                            value = _("N/A");
+                    }
                     break;
 #endif // #ifdef __WXMSW__
                 case Param_IsPrimary:
@@ -920,7 +1021,7 @@ void DisplaysView::DoUpdateValues()
                     value = wxSizeTowxString(display.GetPPI());
                     break;
                 case Param_HasThisWindow:
-                    value = displayForThisWindow == displayIndex ? _("Yes") : _("No");
+                    value = displayForThisWindow == static_cast<int>(displayIndex) ? _("Yes") : _("No");
                     break;
                 default:
                     wxFAIL;
@@ -937,6 +1038,8 @@ void DisplaysView::DoUpdateValues()
     SystemOptionsView
 
 *************************************************/
+
+#if wxUSE_SYSTEM_OPTIONS
 
 class SystemOptionsView : public SysInfoListView
 {
@@ -1018,6 +1121,8 @@ void SystemOptionsView::DoUpdateValues()
     }
 }
 
+#endif // #if wxUSE_SYSTEM_OPTIONS
+
 
 /*************************************************
 
@@ -1067,67 +1172,87 @@ private:
         Param_UserDir_Pictures,
         Param_UserDir_Videos,
 
-        // the group below is available only for wxMSW
-        Param_CSIDL_DESKTOP,
-        Param_CSIDL_INTERNET,
-        Param_CSIDL_PROGRAMS,
-        Param_CSIDL_CONTROLS,
-        Param_CSIDL_PRINTERS,
-        Param_CSIDL_FAVORITES,
-        Param_CSIDL_STARTUP,
-        Param_CSIDL_RECENT,
-        Param_CSIDL_SENDTO,
-        Param_CSIDL_BITBUCKET,
-        Param_CSIDL_STARTMENU,
-        Param_CSIDL_MYDOCUMENTS,
-        Param_CSIDL_MYMUSIC,
-        Param_CSIDL_MYVIDEO,
-        Param_CSIDL_DESKTOPDIRECTORY,
-        Param_CSIDL_DRIVES,
-        Param_CSIDL_NETWORK,
-        Param_CSIDL_NETHOOD,
-        Param_CSIDL_FONTS,
-        Param_CSIDL_TEMPLATES,
-        Param_CSIDL_COMMON_STARTMENU,
-        Param_CSIDL_COMMON_PROGRAMS,
-        Param_CSIDL_COMMON_STARTUP,
-        Param_CSIDL_COMMON_DESKTOPDIRECTORY,
-        Param_CSIDL_APPDATA,
-        Param_CSIDL_PRINTHOOD,
-        Param_CSIDL_LOCAL_APPDATA,
-        Param_CSIDL_ALTSTARTUP,
-        Param_CSIDL_COMMON_ALTSTARTUP,
-        Param_CSIDL_COMMON_FAVORITES,
-        Param_CSIDL_INTERNET_CACHE,
-        Param_CSIDL_COOKIES,
-        Param_CSIDL_HISTORY,
-        Param_CSIDL_COMMON_APPDATA,
-        Param_CSIDL_WINDOWS,
-        Param_CSIDL_SYSTEM,
-        Param_CSIDL_PROGRAM_FILES,
-        Param_CSIDL_MYPICTURES,
-        Param_CSIDL_PROFILE,
-        Param_CSIDL_SYSTEMX86,
-        Param_CSIDL_PROGRAM_FILESX86,
-        Param_CSIDL_PROGRAM_FILES_COMMON,
-        Param_CSIDL_PROGRAM_FILES_COMMONX86,
-        Param_CSIDL_COMMON_TEMPLATES,
-        Param_CSIDL_COMMON_DOCUMENTS,
-        Param_CSIDL_COMMON_ADMINTOOLS,
-        Param_CSIDL_ADMINTOOLS,
-        Param_CSIDL_CONNECTIONS,
-        Param_CSIDL_COMMON_MUSIC,
-        Param_CSIDL_COMMON_PICTURES,
-        Param_CSIDL_COMMON_VIDEO,
-        Param_CSIDL_RESOURCES,
-        Param_CSIDL_RESOURCES_LOCALIZED,
-        Param_CSIDL_COMMON_OEM_LINKS,
-        Param_CSIDL_COMPUTERSNEARME,
-
         // GTK only
         Param_InstallPrefix,
+
+        // wxMSW only: the item data for the shell directories is
+        // Param_FirstShellDir + index in s_shellDirs
+        Param_FirstShellDir = 1000
     };
+
+#ifdef __WXMSW__
+    struct ShellDirInfo
+    {
+        const char* name;
+        int         csidl;
+    };
+
+    static const ShellDirInfo s_shellDirs[];
+#endif // #ifdef __WXMSW__
 };
+
+#ifdef __WXMSW__
+
+const StandardPathsView::ShellDirInfo StandardPathsView::s_shellDirs[] =
+{
+    { "CSIDL_DESKTOP", 0x0000 },
+    { "CSIDL_INTERNET", 0x0001 },
+    { "CSIDL_PROGRAMS", 0x0002 },
+    { "CSIDL_CONTROLS", 0x0003 },
+    { "CSIDL_PRINTERS", 0x0004 },
+    { "CSIDL_FAVORITES", 0x0006 },
+    { "CSIDL_STARTUP", 0x0007 },
+    { "CSIDL_RECENT", 0x0008 },
+    { "CSIDL_SENDTO", 0x0009 },
+    { "CSIDL_BITBUCKET", 0x000a },
+    { "CSIDL_STARTMENU", 0x000b },
+    { "CSIDL_MYDOCUMENTS", 0x0005 },
+    { "CSIDL_MYMUSIC", 0x000d },
+    { "CSIDL_MYVIDEO", 0x000e },
+    { "CSIDL_DESKTOPDIRECTORY", 0x0010 },
+    { "CSIDL_DRIVES", 0x0011 },
+    { "CSIDL_NETWORK", 0x0012 },
+    { "CSIDL_NETHOOD", 0x0013 },
+    { "CSIDL_FONTS", 0x0014 },
+    { "CSIDL_TEMPLATES", 0x0015 },
+    { "CSIDL_COMMON_STARTMENU", 0x0016 },
+    { "CSIDL_COMMON_PROGRAMS", 0x0017 },
+    { "CSIDL_COMMON_STARTUP", 0x0018 },
+    { "CSIDL_COMMON_DESKTOPDIRECTORY", 0x0019 },
+    { "CSIDL_APPDATA", 0x001a },
+    { "CSIDL_PRINTHOOD", 0x001b },
+    { "CSIDL_LOCAL_APPDATA", 0x001c },
+    { "CSIDL_ALTSTARTUP", 0x001d },
+    { "CSIDL_COMMON_ALTSTARTUP", 0x001e },
+    { "CSIDL_COMMON_FAVORITES", 0x001f },
+    { "CSIDL_INTERNET_CACHE", 0x0020 },
+    { "CSIDL_COOKIES", 0x0021 },
+    { "CSIDL_HISTORY", 0x0022 },
+    { "CSIDL_COMMON_APPDATA", 0x0023 },
+    { "CSIDL_WINDOWS", 0x0024 },
+    { "CSIDL_SYSTEM", 0x0025 },
+    { "CSIDL_PROGRAM_FILES", 0x0026 },
+    { "CSIDL_MYPICTURES", 0x0027 },
+    { "CSIDL_PROFILE", 0x0028 },
+    { "CSIDL_SYSTEMX86", 0x0029 },
+    { "CSIDL_PROGRAM_FILESX86", 0x002a },
+    { "CSIDL_PROGRAM_FILES_COMMON", 0x002b },
+    { "CSIDL_PROGRAM_FILES_COMMONX86", 0x002c },
+    { "CSIDL_COMMON_TEMPLATES", 0x002d },
+    { "CSIDL_COMMON_DOCUMENTS", 0x002e },
+    { "CSIDL_COMMON_ADMINTOOLS", 0x002f },
+    { "CSIDL_ADMINTOOLS", 0x0030 },
+    { "CSIDL_CONNECTIONS", 0x0031 },
+    { "CSIDL_COMMON_MUSIC", 0x0035 },
+    { "CSIDL_COMMON_PICTURES", 0x0036 },
+    { "CSIDL_COMMON_VIDEO", 0x0037 },
+    { "CSIDL_RESOURCES", 0x0038 },
+    { "CSIDL_RESOURCES_LOCALIZED", 0x0039 },
+    { "CSIDL_COMMON_OEM_LINKS", 0x003a },
+    { "CSIDL_COMPUTERSNEARME", 0x003d },
+};
+
+#endif // #ifdef __WXMSW__
 
 StandardPathsView::StandardPathsView(wxWindow* parent)
     : SysInfoListView(parent)
@@ -1160,61 +1285,11 @@ StandardPathsView::StandardPathsView(wxWindow* parent)
 #endif // #if wxCHECK_VERSION(3, 1, 0)
 
 #ifdef __WXMSW__
-    AppendItemWithData("MSWShellDir CSIDL_DESKTOP", Param_CSIDL_DESKTOP);
-    AppendItemWithData("MSWShellDir CSIDL_INTERNET", Param_CSIDL_INTERNET);
-    AppendItemWithData("MSWShellDir CSIDL_PROGRAMS", Param_CSIDL_PROGRAMS);
-    AppendItemWithData("MSWShellDir CSIDL_CONTROLS", Param_CSIDL_CONTROLS);
-    AppendItemWithData("MSWShellDir CSIDL_PRINTERS", Param_CSIDL_PRINTERS);
-    AppendItemWithData("MSWShellDir CSIDL_FAVORITES", Param_CSIDL_FAVORITES);
-    AppendItemWithData("MSWShellDir CSIDL_STARTUP", Param_CSIDL_STARTUP);
-    AppendItemWithData("MSWShellDir CSIDL_RECENT", Param_CSIDL_RECENT);
-    AppendItemWithData("MSWShellDir CSIDL_SENDTO", Param_CSIDL_SENDTO);
-    AppendItemWithData("MSWShellDir CSIDL_BITBUCKET", Param_CSIDL_BITBUCKET);
-    AppendItemWithData("MSWShellDir CSIDL_STARTMENU", Param_CSIDL_STARTMENU);
-    AppendItemWithData("MSWShellDir CSIDL_MYDOCUMENTS", Param_CSIDL_MYDOCUMENTS);
-    AppendItemWithData("MSWShellDir CSIDL_MYMUSIC", Param_CSIDL_MYMUSIC);
-    AppendItemWithData("MSWShellDir CSIDL_MYVIDEO", Param_CSIDL_MYVIDEO);
-    AppendItemWithData("MSWShellDir CSIDL_DESKTOPDIRECTORY", Param_CSIDL_DESKTOPDIRECTORY);
-    AppendItemWithData("MSWShellDir CSIDL_DRIVES", Param_CSIDL_DRIVES);
-    AppendItemWithData("MSWShellDir CSIDL_NETWORK", Param_CSIDL_NETWORK);
-    AppendItemWithData("MSWShellDir CSIDL_NETHOOD", Param_CSIDL_NETHOOD);
-    AppendItemWithData("MSWShellDir CSIDL_FONTS", Param_CSIDL_FONTS);
-    AppendItemWithData("MSWShellDir CSIDL_TEMPLATES", Param_CSIDL_TEMPLATES);
-    AppendItemWithData("MSWShellDir CSIDL_COMMON_STARTMENU", Param_CSIDL_COMMON_STARTMENU);
-    AppendItemWithData("MSWShellDir CSIDL_COMMON_PROGRAMS", Param_CSIDL_COMMON_PROGRAMS);
-    AppendItemWithData("MSWShellDir CSIDL_COMMON_STARTUP", Param_CSIDL_COMMON_STARTUP);
-    AppendItemWithData("MSWShellDir CSIDL_COMMON_DESKTOPDIRECTORY", Param_CSIDL_COMMON_DESKTOPDIRECTORY);
-    AppendItemWithData("MSWShellDir CSIDL_APPDATA", Param_CSIDL_APPDATA);
-    AppendItemWithData("MSWShellDir CSIDL_PRINTHOOD", Param_CSIDL_PRINTHOOD);
-    AppendItemWithData("MSWShellDir CSIDL_LOCAL_APPDATA", Param_CSIDL_LOCAL_APPDATA);
-    AppendItemWithData("MSWShellDir CSIDL_ALTSTARTUP", Param_CSIDL_ALTSTARTUP);
-    AppendItemWithData("MSWShellDir CSIDL_COMMON_ALTSTARTUP", Param_CSIDL_COMMON_ALTSTARTUP);
-    AppendItemWithData("MSWShellDir CSIDL_COMMON_FAVORITES", Param_CSIDL_COMMON_FAVORITES);
-    AppendItemWithData("MSWShellDir CSIDL_INTERNET_CACHE", Param_CSIDL_INTERNET_CACHE);
-    AppendItemWithData("MSWShellDir CSIDL_COOKIES", Param_CSIDL_COOKIES);
-    AppendItemWithData("MSWShellDir CSIDL_HISTORY", Param_CSIDL_HISTORY);
-    AppendItemWithData("MSWShellDir CSIDL_COMMON_APPDATA", Param_CSIDL_COMMON_APPDATA);
-    AppendItemWithData("MSWShellDir CSIDL_WINDOWS", Param_CSIDL_WINDOWS);
-    AppendItemWithData("MSWShellDir CSIDL_SYSTEM", Param_CSIDL_SYSTEM);
-    AppendItemWithData("MSWShellDir CSIDL_PROGRAM_FILES", Param_CSIDL_PROGRAM_FILES);
-    AppendItemWithData("MSWShellDir CSIDL_MYPICTURES", Param_CSIDL_MYPICTURES);
-    AppendItemWithData("MSWShellDir CSIDL_PROFILE", Param_CSIDL_PROFILE);
-    AppendItemWithData("MSWShellDir CSIDL_SYSTEMX86", Param_CSIDL_SYSTEMX86);
-    AppendItemWithData("MSWShellDir CSIDL_PROGRAM_FILESX86", Param_CSIDL_PROGRAM_FILESX86);
-    AppendItemWithData("MSWShellDir CSIDL_PROGRAM_FILES_COMMON", Param_CSIDL_PROGRAM_FILES_COMMON);
-    AppendItemWithData("MSWShellDir CSIDL_PROGRAM_FILES_COMMONX86", Param_CSIDL_PROGRAM_FILES_COMMONX86);
-    AppendItemWithData("MSWShellDir CSIDL_COMMON_TEMPLATES", Param_CSIDL_COMMON_TEMPLATES);
-    AppendItemWithData("MSWShellDir CSIDL_COMMON_DOCUMENTS", Param_CSIDL_COMMON_DOCUMENTS);
-    AppendItemWithData("MSWShellDir CSIDL_COMMON_ADMINTOOLS", Param_CSIDL_COMMON_ADMINTOOLS);
-    AppendItemWithData("MSWShellDir CSIDL_ADMINTOOLS", Param_CSIDL_ADMINTOOLS);
-    AppendItemWithData("MSWShellDir CSIDL_CONNECTIONS", Param_CSIDL_CONNECTIONS);
-    AppendItemWithData("MSWShellDir CSIDL_COMMON_MUSIC", Param_CSIDL_COMMON_MUSIC);
-    AppendItemWithData("MSWShellDir CSIDL_COMMON_PICTURES", Param_CSIDL_COMMON_PICTURES);
-    AppendItemWithData("MSWShellDir CSIDL_COMMON_VIDEO", Param_CSIDL_COMMON_VIDEO);
-    AppendItemWithData("MSWShellDir CSIDL_RESOURCES", Param_CSIDL_RESOURCES);
-    AppendItemWithData("MSWShellDir CSIDL_RESOURCES_LOCALIZED", Param_CSIDL_RESOURCES_LOCALIZED);
-    AppendItemWithData("MSWShellDir CSIDL_COMMON_OEM_LINKS", Param_CSIDL_COMMON_OEM_LINKS);
-    AppendItemWithData("MSWShellDir CSIDL_COMPUTERSNEARME", Param_CSIDL_COMPUTERSNEARME);
+    for ( size_t i = 0; i < WXSIZEOF(s_shellDirs); ++i )
+    {
+        AppendItemWithData(wxString("MSWShellDir ") + s_shellDirs[i].name,
+                           Param_FirstShellDir + (long)i);
+    }
 #endif // #ifdef __WXMSW__
 
 #ifdef __WXGTK__
@@ -1240,6 +1315,15 @@ void StandardPathsView::DoUpdateValues()
         const long param = GetItemData(i);
         wxString value;
 
+#ifdef __WXMSW__
+        if ( param >= Param_FirstShellDir )
+        {
+            value = paths.MSWGetShellDir(s_shellDirs[param - Param_FirstShellDir].csidl | flags);
+            SetItem(i, Column_Value, value);
+            continue;
+        }
+#endif // #ifdef __WXMSW__
+
         switch ( param )
         {
             case Param_ExecutablePath:   value = paths.GetExecutablePath(); break;
@@ -1264,64 +1348,6 @@ void StandardPathsView::DoUpdateValues()
             case Param_UserDir_Pictures:  value = paths.GetUserDir(wxStandardPaths::Dir_Pictures); break;
             case Param_UserDir_Videos:    value = paths.GetUserDir(wxStandardPaths::Dir_Videos); break;
 #endif // #if wxCHECK_VERSION(3, 1, 0)
-
-#ifdef __WXMSW__
-            case Param_CSIDL_DESKTOP:                 value = paths.MSWGetShellDir(0x0000 | flags); break;
-            case Param_CSIDL_INTERNET:                value = paths.MSWGetShellDir(0x0001 | flags); break;
-            case Param_CSIDL_PROGRAMS:                value = paths.MSWGetShellDir(0x0002 | flags); break;
-            case Param_CSIDL_CONTROLS:                value = paths.MSWGetShellDir(0x0003 | flags); break;
-            case Param_CSIDL_PRINTERS:                value = paths.MSWGetShellDir(0x0004 | flags); break;
-            case Param_CSIDL_FAVORITES:               value = paths.MSWGetShellDir(0x0006 | flags); break;
-            case Param_CSIDL_STARTUP:                 value = paths.MSWGetShellDir(0x0007 | flags); break;
-            case Param_CSIDL_RECENT:                  value = paths.MSWGetShellDir(0x0008 | flags); break;
-            case Param_CSIDL_SENDTO:                  value = paths.MSWGetShellDir(0x0009 | flags); break;
-            case Param_CSIDL_BITBUCKET:               value = paths.MSWGetShellDir(0x000a | flags); break;
-            case Param_CSIDL_STARTMENU:               value = paths.MSWGetShellDir(0x000b | flags); break;
-            case Param_CSIDL_MYDOCUMENTS:             value = paths.MSWGetShellDir(0x0005 | flags); break;
-            case Param_CSIDL_MYMUSIC:                 value = paths.MSWGetShellDir(0x000d | flags); break;
-            case Param_CSIDL_MYVIDEO:                 value = paths.MSWGetShellDir(0x000e | flags); break;
-            case Param_CSIDL_DESKTOPDIRECTORY:        value = paths.MSWGetShellDir(0x0010 | flags); break;
-            case Param_CSIDL_DRIVES:                  value = paths.MSWGetShellDir(0x0011 | flags); break;
-            case Param_CSIDL_NETWORK:                 value = paths.MSWGetShellDir(0x0012 | flags); break;
-            case Param_CSIDL_NETHOOD:                 value = paths.MSWGetShellDir(0x0013 | flags); break;
-            case Param_CSIDL_FONTS:                   value = paths.MSWGetShellDir(0x0014 | flags); break;
-            case Param_CSIDL_TEMPLATES:               value = paths.MSWGetShellDir(0x0015 | flags); break;
-            case Param_CSIDL_COMMON_STARTMENU:        value = paths.MSWGetShellDir(0x0016 | flags); break;
-            case Param_CSIDL_COMMON_PROGRAMS:         value = paths.MSWGetShellDir(0X0017 | flags); break;
-            case Param_CSIDL_COMMON_STARTUP:          value = paths.MSWGetShellDir(0x0018 | flags); break;
-            case Param_CSIDL_COMMON_DESKTOPDIRECTORY: value = paths.MSWGetShellDir(0x0019 | flags); break;
-            case Param_CSIDL_APPDATA:                 value = paths.MSWGetShellDir(0x001a | flags); break;
-            case Param_CSIDL_PRINTHOOD:               value = paths.MSWGetShellDir(0x001b | flags); break;
-            case Param_CSIDL_LOCAL_APPDATA:           value = paths.MSWGetShellDir(0x001c | flags); break;
-            case Param_CSIDL_ALTSTARTUP:              value = paths.MSWGetShellDir(0x001d | flags); break;
-            case Param_CSIDL_COMMON_ALTSTARTUP:       value = paths.MSWGetShellDir(0x001e | flags); break;
-            case Param_CSIDL_COMMON_FAVORITES:        value = paths.MSWGetShellDir(0x001f | flags); break;
-            case Param_CSIDL_INTERNET_CACHE:          value = paths.MSWGetShellDir(0x0020 | flags); break;
-            case Param_CSIDL_COOKIES:                 value = paths.MSWGetShellDir(0x0021 | flags); break;
-            case Param_CSIDL_HISTORY:                 value = paths.MSWGetShellDir(0x0022 | flags); break;
-            case Param_CSIDL_COMMON_APPDATA:          value = paths.MSWGetShellDir(0x0023 | flags); break;
-            case Param_CSIDL_WINDOWS:                 value = paths.MSWGetShellDir(0x0024 | flags); break;
-            case Param_CSIDL_SYSTEM:                  value = paths.MSWGetShellDir(0x0025 | flags); break;
-            case Param_CSIDL_PROGRAM_FILES:           value = paths.MSWGetShellDir(0x0026 | flags); break;
-            case Param_CSIDL_MYPICTURES:              value = paths.MSWGetShellDir(0x0027 | flags); break;
-            case Param_CSIDL_PROFILE:                 value = paths.MSWGetShellDir(0x0028 | flags); break;
-            case Param_CSIDL_SYSTEMX86:               value = paths.MSWGetShellDir(0x0029 | flags); break;
-            case Param_CSIDL_PROGRAM_FILESX86:        value = paths.MSWGetShellDir(0x002a | flags); break;
-            case Param_CSIDL_PROGRAM_FILES_COMMON:    value = paths.MSWGetShellDir(0x002b | flags); break;
-            case Param_CSIDL_PROGRAM_FILES_COMMONX86: value = paths.MSWGetShellDir(0x002c | flags); break;
-            case Param_CSIDL_COMMON_TEMPLATES:        value = paths.MSWGetShellDir(0x002d | flags); break;
-            case Param_CSIDL_COMMON_DOCUMENTS:        value = paths.MSWGetShellDir(0x002e | flags); break;
-            case Param_CSIDL_COMMON_ADMINTOOLS:       value = paths.MSWGetShellDir(0x002f | flags); break;
-            case Param_CSIDL_ADMINTOOLS:              value = paths.MSWGetShellDir(0x0030 | flags); break;
-            case Param_CSIDL_CONNECTIONS:             value = paths.MSWGetShellDir(0x0031 | flags); break;
-            case Param_CSIDL_COMMON_MUSIC:            value = paths.MSWGetShellDir(0x0035 | flags); break;
-            case Param_CSIDL_COMMON_PICTURES:         value = paths.MSWGetShellDir(0x0036 | flags); break;
-            case Param_CSIDL_COMMON_VIDEO:            value = paths.MSWGetShellDir(0x0037 | flags); break;
-            case Param_CSIDL_RESOURCES:               value = paths.MSWGetShellDir(0x0038 | flags); break;
-            case Param_CSIDL_RESOURCES_LOCALIZED:     value = paths.MSWGetShellDir(0x0039 | flags); break;
-            case Param_CSIDL_COMMON_OEM_LINKS:        value = paths.MSWGetShellDir(0x003a | flags); break;
-            case Param_CSIDL_COMPUTERSNEARME:         value = paths.MSWGetShellDir(0x003d | flags); break;
-#endif // #ifdef __WXMSW__
 
 #ifdef __WXGTK__
             case Param_InstallPrefix:  value = paths.GetInstallPrefix(); break;
@@ -1383,8 +1409,19 @@ void EnvironmentVariablesView::DoUpdateValues()
         return;
     }
 
-    // sort variables alphabetically by name
-    std::map<wxString, wxString> variablesSorted;
+    // sort variables alphabetically by name, ignoring case
+    // as environment variable names are case-insensitive on Windows
+    struct NoCaseLess
+    {
+        bool operator()(const wxString& a, const wxString& b) const
+        {
+            const int cmp = a.CmpNoCase(b);
+
+            return cmp < 0 || (cmp == 0 && a < b);
+        }
+    };
+
+    std::map<wxString, wxString, NoCaseLess> variablesSorted;
 
     for ( auto i = variables.begin(); i != variables.end(); ++i )
         variablesSorted[i->first] = i->second;
@@ -1405,7 +1442,15 @@ void EnvironmentVariablesView::DoUpdateValues()
 
 *************************************************/
 
-class ObtainFullHostNameThread;
+// State shared between MiscellaneousView and the (detached) thread obtaining the full
+// host name, which can take a long time. The view never waits for the thread: it just
+// invalidates the request and the thread then discards its result.
+struct HostNameLookupState
+{
+    wxCriticalSection cs;
+    wxEvtHandler*     sink{nullptr};
+    unsigned          requestId{0};
+};
 
 class MiscellaneousView : public SysInfoListView
 {
@@ -1472,7 +1517,7 @@ private:
         Param_IsPlatformLittleEndian,
     };
 
-    ObtainFullHostNameThread* m_obtainFullHostNameThread{nullptr};
+    std::shared_ptr<HostNameLookupState> m_hostNameLookupState;
 
     void OnObtainFullHostNameThread(wxThreadEvent& event);
     void StartObtainFullHostNameThread();
@@ -1505,60 +1550,86 @@ public:
     static bool IsThisProcessDPIAware();
     static ProcessDPIAwareness GetThisProcessDPIAwareness();
     static wxString GetThisProcessDPIAwarenessStr();
+
+    // the two functions below return 0 if the information is not available
     static unsigned GetSystemDpiForThisProcess();
     static unsigned GetDpiForWindow(wxWindow* win);
 
     static DPIAwarenessContext GetThreadDPIAwarenessContext();
     static wxString GetThreadDPIAwarenessContextStr();
+
+private:
+    using MSW_DPI_AWARENESS_CONTEXT = HANDLE;
+
+    using IsProcessDPIAware_t            = BOOL(WINAPI*)();
+    using GetSystemDpiForProcess_t       = unsigned(WINAPI*)(HANDLE);
+    using GetDpiForWindow_t              = unsigned(WINAPI*)(HWND);
+    using GetThreadDpiAwarenessContext_t = MSW_DPI_AWARENESS_CONTEXT(WINAPI*)();
+    using IsValidDpiAwarenessContext_t   = BOOL(WINAPI*)(MSW_DPI_AWARENESS_CONTEXT);
+    using AreDpiAwarenessContextsEqual_t = BOOL(WINAPI*)(MSW_DPI_AWARENESS_CONTEXT, MSW_DPI_AWARENESS_CONTEXT);
+    using GetProcessDpiAwareness_t       = HRESULT(WINAPI*)(HANDLE, DWORD*);
+
+    // functions not available on all supported versions of Windows,
+    // loaded dynamically just once
+    struct Functions
+    {
+        IsProcessDPIAware_t            pfnIsProcessDPIAware{nullptr};
+        GetSystemDpiForProcess_t       pfnGetSystemDpiForProcess{nullptr};
+        GetDpiForWindow_t              pfnGetDpiForWindow{nullptr};
+        GetThreadDpiAwarenessContext_t pfnGetThreadDpiAwarenessContext{nullptr};
+        IsValidDpiAwarenessContext_t   pfnIsValidDpiAwarenessContext{nullptr};
+        AreDpiAwarenessContextsEqual_t pfnAreDpiAwarenessContextsEqual{nullptr};
+        GetProcessDpiAwareness_t       pfnGetProcessDpiAwareness{nullptr};
+
+        wxDynamicLibrary dllShcore;
+
+        Functions()
+        {
+            {
+                wxLoadedDLL dllUser32("user32.dll");
+
+                wxDL_INIT_FUNC(pfn, IsProcessDPIAware, dllUser32);
+                wxDL_INIT_FUNC(pfn, GetSystemDpiForProcess, dllUser32);
+                wxDL_INIT_FUNC(pfn, GetDpiForWindow, dllUser32);
+                wxDL_INIT_FUNC(pfn, GetThreadDpiAwarenessContext, dllUser32);
+                wxDL_INIT_FUNC(pfn, IsValidDpiAwarenessContext, dllUser32);
+                wxDL_INIT_FUNC(pfn, AreDpiAwarenessContextsEqual, dllUser32);
+            }
+
+            if ( dllShcore.Load("shcore.dll", wxDL_VERBATIM | wxDL_QUIET) )
+            {
+                wxDL_INIT_FUNC(pfn, GetProcessDpiAwareness, dllShcore);
+
+                if ( !pfnGetProcessDpiAwareness )
+                    dllShcore.Unload();
+            }
+        }
+    };
+
+    static const Functions& GetFunctions()
+    {
+        static const Functions s_functions;
+
+        return s_functions;
+    }
 };
 
 bool MSWDPIAwarenessHelper::IsThisProcessDPIAware()
 {
-    using IsProcessDPIAware_t = BOOL(WINAPI*)();
+    const Functions& f = GetFunctions();
 
-    static bool s_initialised = false;
-    static IsProcessDPIAware_t s_pfnIsProcessDPIAware = nullptr;
-
-    if ( !s_initialised )
-    {
-        wxLoadedDLL dllUser32("user32.dll");
-
-        wxDL_INIT_FUNC(s_pfn, IsProcessDPIAware, dllUser32);
-        s_initialised = true;
-    }
-
-    if ( !s_pfnIsProcessDPIAware )
-        return false;
-
-    return s_pfnIsProcessDPIAware() == TRUE;
+    return f.pfnIsProcessDPIAware && f.pfnIsProcessDPIAware() == TRUE;
 }
 
 MSWDPIAwarenessHelper::ProcessDPIAwareness MSWDPIAwarenessHelper::GetThisProcessDPIAwareness()
 {
-    using GetProcessDpiAwareness_t = HRESULT(WINAPI*)(HANDLE, DWORD*);
+    const Functions& f = GetFunctions();
 
-    static bool s_initialised = false;
-    static wxDynamicLibrary s_dllShcore;
-    static GetProcessDpiAwareness_t s_pfnGetProcessDpiAwareness = nullptr;
-
-    if ( !s_initialised )
-    {
-        if ( s_dllShcore.Load("shcore.dll", wxDL_VERBATIM | wxDL_QUIET) )
-        {
-            wxDL_INIT_FUNC(s_pfn, GetProcessDpiAwareness, s_dllShcore);
-
-            if ( !s_pfnGetProcessDpiAwareness )
-                s_dllShcore.Unload();
-        }
-
-        s_initialised = true;
-    }
-
-    if ( !s_pfnGetProcessDpiAwareness )
+    if ( !f.pfnGetProcessDpiAwareness )
         return ProcessDPINotApplicable;
 
     DWORD value = ProcessDPINotApplicable;
-    const HRESULT hr = s_pfnGetProcessDpiAwareness(nullptr, &value);
+    const HRESULT hr = f.pfnGetProcessDpiAwareness(nullptr, &value);
 
     if ( FAILED(hr) )
     {
@@ -1566,12 +1637,13 @@ MSWDPIAwarenessHelper::ProcessDPIAwareness MSWDPIAwarenessHelper::GetThisProcess
         return ProcessDPINotApplicable;
     }
 
-    if ( value == ProcessDPIUnaware )
-        return ProcessDPIUnaware;
-    if ( value == ProcessSystemDPIAware )
-        return ProcessSystemDPIAware;
-    if ( value == ProcessPerMonitorDPIAware )
-        return ProcessPerMonitorDPIAware;
+    switch ( value )
+    {
+        case ProcessDPIUnaware:
+        case ProcessSystemDPIAware:
+        case ProcessPerMonitorDPIAware:
+            return static_cast<ProcessDPIAwareness>(value);
+    }
 
     return ProcessDPINotApplicable;
 }
@@ -1601,95 +1673,55 @@ wxString MSWDPIAwarenessHelper::GetThisProcessDPIAwarenessStr()
 
 unsigned MSWDPIAwarenessHelper::GetSystemDpiForThisProcess()
 {
-    using GetSystemDpiForProcess_t = unsigned(WINAPI*)(HANDLE);
+    const Functions& f = GetFunctions();
 
-    static bool s_initialised = false;
-    static GetSystemDpiForProcess_t s_pfnGetSystemDpiForProcess = nullptr;
+    if ( !f.pfnGetSystemDpiForProcess )
+        return 0;
 
-    if ( !s_initialised )
-    {
-        wxLoadedDLL dllUser32("user32.dll");
-
-        wxDL_INIT_FUNC(s_pfn, GetSystemDpiForProcess, dllUser32);
-        s_initialised = true;
-    }
-
-    if ( !s_pfnGetSystemDpiForProcess )
-        return 96;
-
-    return s_pfnGetSystemDpiForProcess(nullptr);
+    return f.pfnGetSystemDpiForProcess(::GetCurrentProcess());
 }
 
 unsigned MSWDPIAwarenessHelper::GetDpiForWindow(wxWindow* win)
 {
-    using GetDpiForWindow_t = unsigned (WINAPI*)(HWND);
+    const Functions& f = GetFunctions();
 
-    static bool s_initialised = false;
-    static GetDpiForWindow_t s_pfnGetDpiForWindow = nullptr;
+    if ( !f.pfnGetDpiForWindow )
+        return 0;
 
-    if ( !s_initialised )
-    {
-        wxLoadedDLL dllUser32("user32.dll");
-
-        wxDL_INIT_FUNC(s_pfn, GetDpiForWindow, dllUser32);
-        s_initialised = true;
-    }
-
-    if ( !s_pfnGetDpiForWindow )
-        return 96;
-
-    return s_pfnGetDpiForWindow(win->GetHWND());
+    return f.pfnGetDpiForWindow(win->GetHWND());
 }
 
 MSWDPIAwarenessHelper::DPIAwarenessContext MSWDPIAwarenessHelper::GetThreadDPIAwarenessContext()
 {
-    using MSW_DPI_AWARENESS_CONTEXT = HANDLE;
     static const MSW_DPI_AWARENESS_CONTEXT MSW_DPI_AWARENESS_CONTEXT_UNAWARE              = (MSW_DPI_AWARENESS_CONTEXT)-1;
     static const MSW_DPI_AWARENESS_CONTEXT MSW_DPI_AWARENESS_CONTEXT_SYSTEM_AWARE         = (MSW_DPI_AWARENESS_CONTEXT)-2;
     static const MSW_DPI_AWARENESS_CONTEXT MSW_DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE    = (MSW_DPI_AWARENESS_CONTEXT)-3;
     static const MSW_DPI_AWARENESS_CONTEXT MSW_DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = (MSW_DPI_AWARENESS_CONTEXT)-4;
     static const MSW_DPI_AWARENESS_CONTEXT MSW_DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED    = (MSW_DPI_AWARENESS_CONTEXT)-5;
 
-    using GetThreadDpiAwarenessContext_t = MSW_DPI_AWARENESS_CONTEXT(WINAPI*)();
-    using IsValidDpiAwarenessContext_t   = BOOL(WINAPI*)(MSW_DPI_AWARENESS_CONTEXT);
-    using AreDpiAwarenessContextsEqual_t = BOOL(WINAPI*)(MSW_DPI_AWARENESS_CONTEXT, MSW_DPI_AWARENESS_CONTEXT);
+    const Functions& f = GetFunctions();
 
-    static bool s_initialised = false;
-    static GetThreadDpiAwarenessContext_t s_pfnGetThreadDpiAwarenessContext = nullptr;
-    static IsValidDpiAwarenessContext_t   s_pfnIsValidDpiAwarenessContext   = nullptr;
-    static AreDpiAwarenessContextsEqual_t s_pfnAreDpiAwarenessContextsEqual = nullptr;
-
-    if ( !s_initialised )
-    {
-        wxLoadedDLL dllUser32("user32.dll");
-
-        wxDL_INIT_FUNC(s_pfn, GetThreadDpiAwarenessContext, dllUser32);
-        wxDL_INIT_FUNC(s_pfn, AreDpiAwarenessContextsEqual, dllUser32);
-        wxDL_INIT_FUNC(s_pfn, IsValidDpiAwarenessContext, dllUser32);
-        s_initialised = true;
-    }
-
-    if ( !s_pfnGetThreadDpiAwarenessContext
-         || !s_pfnAreDpiAwarenessContextsEqual
-         || !s_pfnIsValidDpiAwarenessContext )
+    if ( !f.pfnGetThreadDpiAwarenessContext
+         || !f.pfnAreDpiAwarenessContextsEqual
+         || !f.pfnIsValidDpiAwarenessContext )
     {
         return DPIAwarenessContextNotApplicable;
     }
 
-    const MSW_DPI_AWARENESS_CONTEXT value = s_pfnGetThreadDpiAwarenessContext();
+    const MSW_DPI_AWARENESS_CONTEXT value = f.pfnGetThreadDpiAwarenessContext();
 
-    if ( !s_pfnIsValidDpiAwarenessContext(value) )
-        return DPIAwarenessContextUnaware;
+    if ( !f.pfnIsValidDpiAwarenessContext(value) )
+        return DPIAwarenessContextNotApplicable;
 
-    if ( s_pfnAreDpiAwarenessContextsEqual(value, MSW_DPI_AWARENESS_CONTEXT_UNAWARE) )
+    if ( f.pfnAreDpiAwarenessContextsEqual(value, MSW_DPI_AWARENESS_CONTEXT_UNAWARE) )
         return DPIAwarenessContextUnaware;
-    if ( s_pfnAreDpiAwarenessContextsEqual(value, MSW_DPI_AWARENESS_CONTEXT_SYSTEM_AWARE) )
+    if ( f.pfnAreDpiAwarenessContextsEqual(value, MSW_DPI_AWARENESS_CONTEXT_SYSTEM_AWARE) )
         return DPIAwarenessContextSystemAware;
-    if ( s_pfnAreDpiAwarenessContextsEqual(value, MSW_DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE) )
+    if ( f.pfnAreDpiAwarenessContextsEqual(value, MSW_DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE) )
         return DPIAwarenessContextPerMonitorAware;
-    if ( s_pfnAreDpiAwarenessContextsEqual(value, MSW_DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) )
+    if ( f.pfnAreDpiAwarenessContextsEqual(value, MSW_DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) )
         return DPIAwarenessContextPerMonitorAwareV2;
-    if ( s_pfnAreDpiAwarenessContextsEqual(value, MSW_DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED) )
+    if ( f.pfnAreDpiAwarenessContextsEqual(value, MSW_DPI_AWARENESS_CONTEXT_UNAWARE_GDISCALED) )
         return DPIAwarenessContextUnawareGdiscaled;
 
     return DPIAwarenessContextNotApplicable;
@@ -1729,20 +1761,32 @@ wxString MSWDPIAwarenessHelper::GetThreadDPIAwarenessContextStr()
 class ObtainFullHostNameThread : public wxThread
 {
 public:
-    ObtainFullHostNameThread(wxEvtHandler* sink)
-        : wxThread(wxTHREAD_JOINABLE),
-          m_sink(sink)
+    ObtainFullHostNameThread(const std::shared_ptr<HostNameLookupState>& state, unsigned requestId)
+        : wxThread(wxTHREAD_DETACHED),
+          m_state(state),
+          m_requestId(requestId)
     {}
 
 protected:
-    wxEvtHandler* m_sink;
+    std::shared_ptr<HostNameLookupState> m_state;
+    const unsigned m_requestId;
 
     ExitCode Entry() override
     {
-        wxThreadEvent evt;
+        const wxString hostName = wxGetFullHostName();
 
-        evt.SetString(wxGetFullHostName());
-        wxQueueEvent(m_sink, evt.Clone());
+        // the view may have been destroyed or may have requested
+        // a newer result in the meantime
+        wxCriticalSectionLocker locker(m_state->cs);
+
+        if ( m_state->sink && m_state->requestId == m_requestId )
+        {
+            wxThreadEvent* const evt = new wxThreadEvent();
+
+            evt->SetString(hostName);
+            wxQueueEvent(m_state->sink, evt);
+        }
+
         return static_cast<wxThread::ExitCode>(nullptr);
     }
 };
@@ -1750,7 +1794,13 @@ protected:
 
 wxString GetThemeName()
 {
-    wxString name = "<Unsupported on This Platform>";
+#if defined(__WXMSW__)
+    wxString name = _("<Unavailable>");
+#elif defined(__WXGTK__)
+    wxString name;
+#else
+    wxString name = _("<Unsupported on This Platform>");
+#endif
 
 #ifdef __WXMSW__
     static const int buffSize = 1024;
@@ -1789,14 +1839,24 @@ wxString GetThemeName()
     return name;
 }
 
+#ifdef __WXMSW__
+wxString DPIToString(unsigned dpi)
+{
+    return dpi ? wxString::Format("%u", dpi) : _("N/A");
+}
+#endif // #ifdef __WXMSW__
+
 MiscellaneousView::~MiscellaneousView()
 {
     StopObtainFullHostNameThread();
 }
 
 MiscellaneousView::MiscellaneousView(wxWindow* parent)
-    : SysInfoListView(parent)
+    : SysInfoListView(parent),
+      m_hostNameLookupState(std::make_shared<HostNameLookupState>())
 {
+    m_hostNameLookupState->sink = this;
+
     InsertColumn(Column_Name, _("Name"));
     InsertColumn(Column_Value, _("Value"));
 
@@ -1935,12 +1995,12 @@ void MiscellaneousView::DoUpdateValues()
             case Param_IsProcessDPIAware:         value = MSWDPIAwarenessHelper::IsThisProcessDPIAware() ? _("Yes") : _("No"); break;
             case Param_ProcessDPIAwareness:       value = MSWDPIAwarenessHelper::GetThisProcessDPIAwarenessStr(); break;
             case Param_ThreadDPIAwarenessContext: value = MSWDPIAwarenessHelper::GetThreadDPIAwarenessContextStr(); break;
-            case Param_ProcessSystemDPI:          value.Printf("%d", MSWDPIAwarenessHelper::GetSystemDpiForThisProcess()); break;
-            case Param_WindowDPI:                 value.Printf("%d", MSWDPIAwarenessHelper::GetDpiForWindow(this)); break;
+            case Param_ProcessSystemDPI:          value = DPIToString(MSWDPIAwarenessHelper::GetSystemDpiForThisProcess()); break;
+            case Param_WindowDPI:                 value = DPIToString(MSWDPIAwarenessHelper::GetDpiForWindow(this)); break;
 #endif // #ifdef __WXMSW__
 
             case Param_WindowContentScaleFactor:  value.Printf("%.2f", GetContentScaleFactor()); break;
-            case Param_PathSeparator:             value.Printf("%s", wxString(wxFileName::GetPathSeparator())); break;
+            case Param_PathSeparator:             value = wxString(wxFileName::GetPathSeparator()); break;
             case Param_UserId:                    value = wxGetUserId(); break;
             case Param_UserName:                  value = wxGetUserName(); break;
             case Param_SystemEncodingName:        value = wxLocale::GetSystemEncodingName(); break;
@@ -1951,7 +2011,7 @@ void MiscellaneousView::DoUpdateValues()
             case Param_HostName:                  value = wxGetHostName(); break;
             case Param_FullHostName:              value = _("<Evaluating...>"); break;
             case Param_OSDescription:             value =  wxGetOsDescription(); break;
-            case Param_OSVersion:                 value.Printf(_("%d.%d.%d"), verMajor, verMinor, verMicro); break;
+            case Param_OSVersion:                 value.Printf("%d.%d.%d", verMajor, verMinor, verMicro); break;
 #ifdef __LINUX__
             case Param_LinuxDistributionInfo:     value.Printf("%s (%s)", linuxDistributionInfo.Description, linuxDistributionInfo.CodeName); break;
 #endif // #ifdef __LINUX__
@@ -1981,25 +2041,30 @@ void MiscellaneousView::OnObtainFullHostNameThread(wxThreadEvent& event)
 
 void MiscellaneousView::StartObtainFullHostNameThread()
 {
-    StopObtainFullHostNameThread();
+    unsigned requestId;
 
-    m_obtainFullHostNameThread = new ObtainFullHostNameThread(this);
-    if ( m_obtainFullHostNameThread->Run() != wxTHREAD_NO_ERROR )
     {
-        delete m_obtainFullHostNameThread;
-        m_obtainFullHostNameThread= nullptr;
+        wxCriticalSectionLocker locker(m_hostNameLookupState->cs);
+
+        // invalidates the result of any previous lookup that is still running
+        requestId = ++m_hostNameLookupState->requestId;
+    }
+
+    ObtainFullHostNameThread* const thread = new ObtainFullHostNameThread(m_hostNameLookupState, requestId);
+
+    // the thread is detached and deletes itself when finished
+    if ( thread->Run() != wxTHREAD_NO_ERROR )
+    {
+        delete thread;
         wxLogError(_("Could not create the thread needed to obtain the full host name."));
     }
 }
 
 void MiscellaneousView::StopObtainFullHostNameThread()
 {
-    if ( m_obtainFullHostNameThread )
-    {
-        m_obtainFullHostNameThread->Delete();
-        delete m_obtainFullHostNameThread;
-        m_obtainFullHostNameThread = nullptr;
-    }
+    wxCriticalSectionLocker locker(m_hostNameLookupState->cs);
+
+    m_hostNameLookupState->sink = nullptr;
 }
 
 /*************************************************
@@ -2026,6 +2091,8 @@ private:
         Column_Name = 0,
         Column_Value,
     };
+
+    void AppendDefineItem(const wxString& name, const wxString& value);
 };
 
 PreprocessorDefinesView::PreprocessorDefinesView(wxWindow* parent)
@@ -2048,14 +2115,22 @@ wxString DefineValueToText(const wxString& name, const wxString& value)
     return value;
 }
 
-#define APPEND_DEFINE_ITEM(value) \
-    itemIndex = InsertItem(GetItemCount(), #value); \
-    SetItem(itemIndex, Column_Value, DefineValueToText(#value, wxSTRINGIZE_T(value)));
+// braces instead of do { } while (0) so that the macro can be used without a trailing semicolon
+#define APPEND_DEFINE_ITEM(value)     { AppendDefineItem(#value, DefineValueToText(#value, wxSTRINGIZE_T(value))); }
 
-#define APPEND_HAS_FEATURE_ITEM(name, value) \
-    itemIndex = InsertItem(GetItemCount(), name); \
-    SetItem(itemIndex, Column_Value, hasDefine ? _("Yes") : _("No")); \
-    hasDefine = false;
+// Some macros (e.g. wxHAS_*) are defined as empty, which cannot be passed to
+// APPEND_DEFINE_ITEM() with all compilers, so only their presence is checked,
+// using hasDefine which must be set by the caller after testing the macro.
+#define APPEND_HAS_DEFINE_ITEM(name) \
+    { AppendDefineItem(name, hasDefine ? _("Yes") : _("No")); hasDefine = false; }
+
+void PreprocessorDefinesView::AppendDefineItem(const wxString& name, const wxString& value)
+{
+    const long itemIndex = InsertItem(GetItemCount(), name);
+
+    if ( itemIndex != -1 )
+        SetItem(itemIndex, Column_Value, value);
+}
 
 void PreprocessorDefinesView::DoUpdateValues()
 {
@@ -2064,7 +2139,6 @@ void PreprocessorDefinesView::DoUpdateValues()
     if ( GetItemCount() > 0 )
         return;
 
-    long itemIndex;
     bool hasDefine{false};
 
     APPEND_DEFINE_ITEM(__cplusplus)
@@ -2128,9 +2202,7 @@ void PreprocessorDefinesView::DoUpdateValues()
     APPEND_DEFINE_ITEM(WXUSINGDLL)
 #endif
 
-    const long ABIVersion = wxABI_VERSION;
-    itemIndex = InsertItem(GetItemCount(), "wxABI_VERSION");
-    SetItem(itemIndex, Column_Value, wxString::Format("%ld", ABIVersion));
+    AppendDefineItem("wxABI_VERSION", wxString::Format("%ld", (long)wxABI_VERSION));
 
 #ifdef WXWIN_COMPATIBILITY_2_8
     APPEND_DEFINE_ITEM(WXWIN_COMPATIBILITY_2_8)
@@ -2142,8 +2214,7 @@ void PreprocessorDefinesView::DoUpdateValues()
     APPEND_DEFINE_ITEM(WXWIN_COMPATIBILITY_3_2)
 #endif
 
-    itemIndex = InsertItem(GetItemCount(), "WX_BUILD_OPTIONS_SIGNATURE");
-    SetItem(itemIndex, Column_Value, WX_BUILD_OPTIONS_SIGNATURE);
+    AppendDefineItem("WX_BUILD_OPTIONS_SIGNATURE", WX_BUILD_OPTIONS_SIGNATURE);
 
     APPEND_DEFINE_ITEM(wxUSE_REPRODUCIBLE_BUILD)
     APPEND_DEFINE_ITEM(wxDEBUG_LEVEL)
@@ -2177,7 +2248,7 @@ void PreprocessorDefinesView::DoUpdateValues()
 #ifdef wxNO_UNSAFE_WXSTRING_CONV
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxNO_UNSAFE_WXSTRING_CONV", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxNO_UNSAFE_WXSTRING_CONV")
 
     APPEND_DEFINE_ITEM(wxNO_IMPLICIT_WXSTRING_ENCODING)
     APPEND_DEFINE_ITEM(wxUSE_EXCEPTIONS)
@@ -2474,112 +2545,112 @@ void PreprocessorDefinesView::DoUpdateValues()
 #ifdef wxHAS_3STATE_CHECKBOX
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_3STATE_CHECKBOX", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_3STATE_CHECKBOX")
 
 #ifdef wxHAS_ATOMIC_OPS
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_ATOMIC_OPS", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_ATOMIC_OPS")
 
 #ifdef wxHAS_BITMAPTOGGLEBUTTON
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_BITMAPTOGGLEBUTTON", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_BITMAPTOGGLEBUTTON")
 
 #ifdef wxHAS_MEMBER_DEFAULT
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_MEMBER_DEFAULT", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_MEMBER_DEFAULT")
 
 #ifdef wxHAS_LARGE_FILES
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_LARGE_FILES", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_LARGE_FILES")
 
 #ifdef wxHAS_LARGE_FFILES
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_LARGE_FFILES", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_LARGE_FFILES")
 
 #ifdef wxHAS_LONG_LONG_T_DIFFERENT_FROM_LONG
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_LONG_LONG_T_DIFFERENT_FROM_LONG", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_LONG_LONG_T_DIFFERENT_FROM_LONG")
 
 #ifdef wxHAS_MULTIPLE_FILEDLG_FILTERS
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_MULTIPLE_FILEDLG_FILTERS", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_MULTIPLE_FILEDLG_FILTERS")
 
 #ifdef wxHAS_NATIVE_ANIMATIONCTRL
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_NATIVE_ANIMATIONCTRL", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_NATIVE_ANIMATIONCTRL")
 
 #ifdef wxHAS_NATIVE_DATAVIEWCTRL
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_NATIVE_DATAVIEWCTRL", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_NATIVE_DATAVIEWCTRL")
 
 #ifdef wxHAS_NATIVE_WINDOW
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_NATIVE_WINDOW", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_NATIVE_WINDOW")
 
 #ifdef wxHAS_NOEXCEPT
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_NOEXCEPT", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_NOEXCEPT")
 
 #ifdef wxHAS_NULLPTR_T
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_NULLPTR_T", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_NULLPTR_T")
 
 #ifdef wxHAS_IMAGES_IN_RESOURCES
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_IMAGES_IN_RESOURCES", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_IMAGES_IN_RESOURCES")
 
 #ifdef wxHAS_POWER_EVENTS
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_POWER_EVENTS", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_POWER_EVENTS")
 
 #ifdef wxHAS_RADIO_MENU_ITEMS
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_RADIO_MENU_ITEMS", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_RADIO_MENU_ITEMS")
 
 #ifdef wxHAS_RAW_BITMAP
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_RAW_BITMAP", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_RAW_BITMAP")
 
 #ifdef wxHAS_RAW_KEY_CODES
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_RAW_KEY_CODES", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_RAW_KEY_CODES")
 
 #ifdef wxHAS_REGEX_ADVANCED
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_REGEX_ADVANCED", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_REGEX_ADVANCED")
 
 #ifdef wxHAS_TASK_BAR_ICON
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_TASK_BAR_ICON", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_TASK_BAR_ICON")
 
 #ifdef wxHAS_WINDOW_LABEL_IN_STATIC_BOX
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_WINDOW_LABEL_IN_STATIC_BOX", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_WINDOW_LABEL_IN_STATIC_BOX")
 
 #ifdef wxHAS_MODE_T
     hasDefine = true;
 #endif
-    APPEND_HAS_FEATURE_ITEM("wxHAS_MODE_T", hasDefine)
+    APPEND_HAS_DEFINE_ITEM("wxHAS_MODE_T")
 }
 
 } // anonymous namespace for helper classes
@@ -2600,7 +2671,14 @@ wxSystemInformationFrame::wxSystemInformationFrame(wxWindow *parent, wxWindowID 
 
 wxSystemInformationFrame::wxSystemInformationFrame(wxWindow* parent, const wxSize& size, long createFlags)
 {
-    Create(parent, wxID_ANY, "wxSystemInformationFrame", wxDefaultPosition, size, wxDEFAULT_FRAME_STYLE, createFlags);
+#if wxCHECK_VERSION(3, 1, 0)
+    // the default size is specified in DIPs
+    const wxSize frameSize = wxWindow::FromDIP(size, parent);
+#else
+    const wxSize& frameSize = size;
+#endif
+
+    Create(parent, wxID_ANY, "wxSystemInformationFrame", wxDefaultPosition, frameSize, wxDEFAULT_FRAME_STYLE, createFlags);
 }
 
 
@@ -2611,7 +2689,19 @@ bool wxSystemInformationFrame::Create(wxWindow *parent, wxWindowID id, const wxS
     if ( !wxFrame::Create(parent, id, title, pos, size, frameStyle) )
         return false;
 
-    m_autoRefresh = createFlags & AutoRefresh;
+    m_autoRefresh = (createFlags & AutoRefresh) != 0;
+
+    // set up the timer and the event handlers first so that they are ready
+    // for any messages sent while the rest of the frame is being created
+    m_valuesUpdateTimer.SetOwner(this);
+    Bind(wxEVT_TIMER, &wxSystemInformationFrame::OnUpdateValuesTimer, this);
+
+    Bind(wxEVT_SYS_COLOUR_CHANGED, &wxSystemInformationFrame::OnSysColourChanged, this);
+    Bind(wxEVT_DISPLAY_CHANGED, &wxSystemInformationFrame::OnDisplayChanged, this);
+
+#if wxCHECK_VERSION(3, 1, 3)
+    Bind(wxEVT_DPI_CHANGED, &wxSystemInformationFrame::OnDPIChanged, this);
+#endif
 
     wxPanel* mainPanel = new wxPanel(this);
     wxBoxSizer* mainPanelSizer = new wxBoxSizer(wxVERTICAL);
@@ -2668,8 +2758,10 @@ bool wxSystemInformationFrame::Create(wxWindow *parent, wxWindowID id, const wxS
     if ( createFlags & ViewStandardPaths )
         m_pages->AddPage(new StandardPathsView(m_pages), _("Standard Paths"));
 
+#if wxUSE_SYSTEM_OPTIONS
     if ( createFlags & ViewSystemOptions )
         m_pages->AddPage(new SystemOptionsView(m_pages), _("System Options"));
+#endif
 
     if ( createFlags & ViewEnvironmentVariables )
         m_pages->AddPage(new EnvironmentVariablesView(m_pages), _("Environment Variables"));
@@ -2690,39 +2782,35 @@ bool wxSystemInformationFrame::Create(wxWindow *parent, wxWindowID id, const wxS
                                 wxTE_MULTILINE | wxTE_READONLY | wxTE_RICH2);
     mainPanelSizer->Add(m_logCtrl, wxSizerFlags().Proportion(1).Expand().Border());
 
-    if ( !m_unloggedInformation.empty() )
-    {
-        for ( size_t i = 0; i < m_unloggedInformation.size(); ++i )
-            m_logCtrl->AppendText(m_unloggedInformation[i]);
-    }
+    for ( const auto& information : m_unloggedInformation )
+        m_logCtrl->AppendText(information);
+    m_unloggedInformation.clear();
 
     mainPanel->SetSizer(mainPanelSizer);
 
     if ( detailsButton )
         detailsButton->Bind(wxEVT_UPDATE_UI, &wxSystemInformationFrame::OnUpdateUI, this);
 
-    m_valuesUpdateTimer.SetOwner(this);
-    Bind(wxEVT_TIMER, &wxSystemInformationFrame::OnUpdateValuesTimer, this);
-
-    Bind(wxEVT_SYS_COLOUR_CHANGED, &wxSystemInformationFrame::OnSysColourChanged, this);
-    Bind(wxEVT_DISPLAY_CHANGED, &wxSystemInformationFrame::OnDisplayChanged, this);
-
-#if wxCHECK_VERSION(3, 1, 3)
-    Bind(wxEVT_DPI_CHANGED, &wxSystemInformationFrame::OnDPIChanged, this);
-#endif
-
     return true;
 }
 
 wxArrayString wxSystemInformationFrame::GetValues(const wxString& separator) const
 {
-    const size_t pageCount = m_pages->GetPageCount();
-
     wxArrayString values;
+
+    // m_pages is null if the frame creation failed
+    if ( !m_pages )
+        return values;
+
+    const size_t pageCount = m_pages->GetPageCount();
 
     for ( size_t i = 0; i < pageCount; ++i )
     {
         const SysInfoListView* view = dynamic_cast<SysInfoListView*>(m_pages->GetPage(i));
+
+        if ( !view )
+            continue;
+
         const wxArrayString viewValues = view->GetValues(separator);
 
         if ( i > 0 )
@@ -2730,7 +2818,10 @@ wxArrayString wxSystemInformationFrame::GetValues(const wxString& separator) con
 
         values.push_back(m_pages->GetPageText(i));
         values.push_back("----------------------------");
-        values.insert(values.end(), viewValues.begin(), viewValues.end());
+
+        // not using values.insert() because it does not link when wxWidgets is built as a DLL
+        for ( const auto& viewValue : viewValues )
+            values.push_back(viewValue);
     }
 
     return values;
@@ -2739,26 +2830,29 @@ wxArrayString wxSystemInformationFrame::GetValues(const wxString& separator) con
 #ifdef __WXMSW__
 WXLRESULT wxSystemInformationFrame::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam)
 {
-    if ( nMsg == WM_SETTINGCHANGE )
+    switch ( nMsg )
     {
-        LogInformation(wxString::Format("WM_SETTINGCHANGE received: wParam = %u, lParam =\"%s\"",
-            (unsigned)wParam, lParam ? (LPCTSTR)lParam : wxS("")));
-        TriggerValuesUpdate();
-    }
-    if ( nMsg == WM_THEMECHANGED )
-    {
-        LogInformation(wxString::Format("WM_THEMECHANGED received: wParam = %#x, lParam = %#lx", (unsigned)wParam, (long)lParam));
-        TriggerValuesUpdate();
-    }
+        case WM_SETTINGCHANGE:
+            // lParam is either null or a string identifying the changed setting
+            LogInformation(wxString::Format("WM_SETTINGCHANGE received: wParam = %u, lParam =\"%s\"",
+                (unsigned)wParam, lParam ? (LPCTSTR)lParam : wxS("")));
+            TriggerValuesUpdate();
+            break;
+
+        case WM_THEMECHANGED:
+            LogInformation(wxString::Format("WM_THEMECHANGED received: wParam = %#x, lParam = %#lx", (unsigned)wParam, (long)lParam));
+            TriggerValuesUpdate();
+            break;
+
 #if !wxCHECK_VERSION(3, 1, 3) // 3.1.3+ has wxEVT_DPI_CHANGED
-    else
-    if ( nMsg ==  0x02E0 ) // 0x02E0 = WM_DPICHANGED
-    {
-        LogInformation(wxString::Format("WM_DPICHANGED received: new DPI = %u x %u",
-            (unsigned)LOWORD(wParam), (unsigned)HIWORD(wParam)));
-        TriggerValuesUpdate();
-    }
+        case 0x02E0: // WM_DPICHANGED
+            LogInformation(wxString::Format("WM_DPICHANGED received: new DPI = %u x %u",
+                (unsigned)LOWORD(wParam), (unsigned)HIWORD(wParam)));
+            TriggerValuesUpdate();
+            break;
 #endif // #if !wxCHECK_VERSION(3, 1, 3)
+    }
+
     return wxFrame::MSWWindowProc(nMsg, wParam, lParam);
 }
 #endif // #ifdef __WXMSW__
@@ -2794,6 +2888,9 @@ void wxSystemInformationFrame::TriggerValuesUpdate()
 
 void wxSystemInformationFrame::UpdateValues()
 {
+    if ( !m_pages )
+        return;
+
     const size_t pageCount = m_pages->GetPageCount();
 
     {
@@ -2802,7 +2899,9 @@ void wxSystemInformationFrame::UpdateValues()
         for ( size_t i = 0; i < pageCount; ++i )
         {
             SysInfoListView* view = dynamic_cast<SysInfoListView*>(m_pages->GetPage(i));
-            view->UpdateValues();
+
+            if ( view )
+                view->UpdateValues();
         }
     }
 
@@ -2829,31 +2928,44 @@ void wxSystemInformationFrame::OnShowwxInfoMessageBox(wxCommandEvent&)
 
 void wxSystemInformationFrame::OnSave(wxCommandEvent&)
 {
-    const wxString fileName = wxFileSelector(_("Choose File Name"), "", "", "",
-                                             _("Text Files (*.txt)|*.txt"),
-                                             wxFD_SAVE | wxFD_OVERWRITE_PROMPT, this);
+    wxFileDialog dialog(this, _("Choose File Name"), wxEmptyString, wxEmptyString,
+                        _("Text Files (*.txt)|*.txt"), wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
 
-    if ( fileName.empty() )
+    if ( dialog.ShowModal() != wxID_OK )
         return;
 
-    wxTextFile textFile(fileName);
+    wxFileName fileName(dialog.GetPath());
+
+    // add the extension if the user did not specify any
+    if ( !fileName.HasExt() )
+        fileName.SetExt("txt");
+
+    const wxString path = fileName.GetFullPath();
+    wxTextFile textFile(path);
 
     if ( textFile.Exists() )
     {
         if ( !textFile.Open() )
+        {
+            wxLogError(_("Could not open file \"%s\"."), path);
             return;
+        }
         textFile.Clear();
     }
     else
     if ( !textFile.Create() )
+    {
+        wxLogError(_("Could not create file \"%s\"."), path);
         return;
+    }
 
     const wxArrayString values = GetValues();
 
     for ( const auto& value : values )
         textFile.AddLine(value);
 
-    textFile.Write();
+    if ( !textFile.Write() )
+        wxLogError(_("Could not write to file \"%s\"."), path);
 }
 
 void wxSystemInformationFrame::OnClearLog(wxCommandEvent&)

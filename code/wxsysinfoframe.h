@@ -42,7 +42,7 @@ public:
         ViewPreprocessorDefines  = 1 << 9,
     };
 
-    static const long DefaultCreateFlags = AutoRefresh
+    static constexpr long DefaultCreateFlags = AutoRefresh
                                            | ViewSystemColours | ViewSystemFonts | ViewSystemMetrics
                                            | ViewDisplays | ViewStandardPaths | ViewSystemOptions
                                            | ViewEnvironmentVariables | ViewMiscellaneous
