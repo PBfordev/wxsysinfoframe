@@ -1,0 +1,58 @@
+name: Build on macOS
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '.github/workflows/build-msvs.yml'
+      - '.github/workflows/build-msys2.yml'
+      - '.github/workflows/build-linux.yml'
+      - 'ReadMe.md'
+      - 'screenshots/**'
+  pull_request:
+    branches:
+      - master
+    paths-ignore:
+      - '.github/workflows/build-msvs.yml'
+      - '.github/workflows/build-msys2.yml'
+      - '.github/workflows/build-linux.yml'
+      - 'ReadMe.md'
+      - 'screenshots/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# cancel the runs for the previous pushes to a pull request,
+# runs for pushes to master are grouped by commit so none is skipped
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  BUILD_DIR_PATH: build_cmake
+
+jobs:
+  build:
+    # Apple silicon, Homebrew provides prebuilt wxWidgets (bottles) for it
+    runs-on: macos-15
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v7
+
+    # The latest wxWidgets release is available as a Homebrew bottle,
+    # wxWidgets is not built here. CMake and Ninja are already installed on the runner.
+    - name: Install wxWidgets
+      run: |
+        brew install wxwidgets
+        wx-config --version
+
+    - name: Configure
+      run: |
+        cmake -G Ninja -B $BUILD_DIR_PATH -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      run: |
+        cmake --build $BUILD_DIR_PATH
