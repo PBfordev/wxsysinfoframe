@@ -56,3 +56,15 @@ jobs:
     - name: Build
       run: |
         cmake --build $BUILD_DIR_PATH
+
+    # The application writes the system information to a file, which is then shown in the log.
+    - name: Show system information
+      timeout-minutes: 2
+      run: |
+        dump="$RUNNER_TEMP/sysinfo.txt"
+        status=0
+        ./$BUILD_DIR_PATH/wxSysInfoFrameTest --dump="$dump" || status=$?
+        echo "::group::System information"
+        cat "$dump" || echo "No output was written."
+        echo "::endgroup::"
+        exit $status

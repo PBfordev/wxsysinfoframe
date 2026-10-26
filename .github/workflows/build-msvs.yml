@@ -78,3 +78,19 @@ jobs:
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
           cmake --build ${env:BUILD_DIR_PATH} --config Release
+
+      # The application writes the system information to a file, which is then shown
+      # in the log. It is a GUI application, so Start-Process is needed to wait for it.
+      - name: Show system information
+        timeout-minutes: 2
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          # the wxWidgets DLLs are needed to run the application
+          $env:PATH = "${env:WXWIN}\lib\vc14x_x64_dll;${env:PATH}"
+          $dump = Join-Path $env:RUNNER_TEMP 'sysinfo.txt'
+          $app = Join-Path $PWD "${env:BUILD_DIR_PATH}\Release\wxSysInfoFrameTest.exe"
+          $process = Start-Process -FilePath $app -ArgumentList "--dump=$dump" -Wait -PassThru
+          "::group::System information"
+          if (Test-Path $dump) { Get-Content $dump } else { "No output was written." }
+          "::endgroup::"
+          if ($process.ExitCode -ne 0) { throw "The application failed with exit code $($process.ExitCode)." }
